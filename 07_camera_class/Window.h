@@ -25,6 +25,8 @@ public:
 
     bool keyIsPressed(int key);
 
+    GLFWwindow *getWindowPtr(void);
+
 private:
     // Variables
     GLFWwindow *m_window = NULL;

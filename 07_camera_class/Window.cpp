@@ -59,6 +59,8 @@ bool Window::init(int width, int height, const char *title)
     // otherwise show glew version
     std::cout << "GLEW initialized, version: " << glewGetString(GLEW_VERSION) << std::endl;
 
+    glfwSetInputMode(m_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+
     return true;
 }
 
@@ -96,4 +98,8 @@ bool Window::keyIsPressed(int key)
     return (glfwGetKey(m_window, key) == GLFW_PRESS);
 }
 
+GLFWwindow *Window::getWindowPtr(void)
+{
+    return m_window;
+}
 

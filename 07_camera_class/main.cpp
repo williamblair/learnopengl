@@ -4,6 +4,7 @@
 
 #include "Window.h"
 #include "LoadShaders.h"
+#include "Camera.h"
 
 // matrix library
 #include <glm/glm.hpp>
@@ -46,6 +47,8 @@ glm::mat4 projMat;
 glm::vec3 cameraPos;
 glm::vec3 cameraFront;
 glm::vec3 cameraUp;
+
+Camera camera;
 
 // cube model matrices
 #define NUM_CUBES 10
@@ -321,7 +324,8 @@ void update_matrices()
 {
 
     glUniformMatrix4fv(modelMatLoc, 1, GL_FALSE, glm::value_ptr(modelMat));
-    glUniformMatrix4fv(viewMatLoc, 1, GL_FALSE, glm::value_ptr(viewMat));
+    //glUniformMatrix4fv(viewMatLoc, 1, GL_FALSE, glm::value_ptr(viewMat));
+    glUniformMatrix4fv(viewMatLoc, 1, GL_FALSE, camera.getLookAtPtr());
     glUniformMatrix4fv(projMatLoc, 1, GL_FALSE, glm::value_ptr(projMat));
 }
 
@@ -416,7 +420,7 @@ void mouseHandler(GLFWwindow *window, double xpos, double ypos)
     pitch += yoffset;
 
     /* Constrain movements to 90 degrees up and down */
-    if (pitch > 89.0f) pitch = 80.0f;
+    if (pitch > 89.0f) pitch = 89.0f;
     if (pitch < -89.0f) pitch = -89.0f;
 
     glm::vec3 front;
@@ -460,15 +464,17 @@ int main(int argc, char *argv[])
     }
 
     //window.setKeyHandler(keyHandler);
-    window.setMouseHandler(mouseHandler);
-    window.setScrollHandler(scrollHandler);
+    //window.setMouseHandler(mouseHandler);
+    //window.setScrollHandler(scrollHandler);
+    camera.setWindow(&window);
 
     // create buffers
     init();
 
     while(!window.shouldClose())
     {
-        processInput(window);
+        //processInput(window);
+        camera.update();
         update_matrices();
         display();
         window.update();
