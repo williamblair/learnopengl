@@ -2,6 +2,8 @@
 // Test opengl application
 //
 
+#define GLEW_STATIC
+
 #include "Window.h"
 #include "LoadShaders.h"
 

@@ -1,11 +1,9 @@
-# makefile modifed for windows mingw
-# also for windows mingw don't forget to copy glew32.dll to this directory
-
 #CC = g++
 CC = mingw32-g++
 SOURCES = ./*.cpp
+
 CFLAGS = -g -D_DEBUG -std=c++11
-#LIBS = -L/usr/local/lib -lGLEW -lGLU -lGL -lglfw
+# LIBS = -lGLEW -lGLU -lGL -lglfw
 LIBS = -lglew32 -lglfw3 -lopengl32 -lglu32 -lgdi32
 
 TARGET = main

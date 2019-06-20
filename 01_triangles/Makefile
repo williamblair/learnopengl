@@ -2,7 +2,8 @@ CC = g++
 SOURCES = ./*.cpp
 
 CFLAGS = -g -D_DEBUG
-LIBS = -lGLEW -lGLU -lGL -lglfw
+#LIBS = -lGLEW -lGLU -lGL -lglfw
+LIBS = -lglew32 -lglfw3 -lopengl32 -lglu32 -lgdi32
 
 TARGET = main
 
