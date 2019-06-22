@@ -9,9 +9,9 @@ Mesh::Mesh(std::vector<Vertex> &vertices,
 )
 {
     /* Set data size */
-    m_vertices.reserve(vertices.size());
-    m_indices.reserve(indices.size());
-    m_textures.reserve(textures.size());
+    m_vertices.resize(vertices.size());
+    m_indices.resize(indices.size());
+    m_textures.resize(textures.size());
 
     /* Copy data */
     std::copy(vertices.begin(), vertices.end(), m_vertices.begin());

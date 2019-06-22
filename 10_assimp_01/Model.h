@@ -7,6 +7,11 @@
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
 
+// matrix library
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
 #include "../stb_image.h"
 
 #include "Mesh.h"
@@ -23,7 +28,23 @@ public:
     Model(const char *path);
 
     /* Draw the model */
-    void draw(GLuint shaderProg);
+    void draw(void);
+
+    /* Store the uniform location of the model matrix in the shader to send our model matrix to when drawing
+     * this should be called before draw!
+     */
+    void setModelMatLoc(GLuint loc);
+
+    /* set the shader program for the model to use */
+    void setShaderProg(GLuint prog);
+
+    /* Transformations */
+    void rotate(GLfloat angle, glm::vec3 axis);
+    void scale(glm::vec3 scale);
+    void move(glm::vec3 pos);
+
+    /* Getters */
+    glm::vec3 getPos(void) const;
 
 private:
    
@@ -41,8 +62,31 @@ private:
                                             std::string type_name
     );
 
-    /* Load a texture using SOIL */
+    /* Load a texture using assimp */
     GLuint load_texture(const char *filename, const char *dir);
+
+
+    /* model matrix */
+    glm::mat4 m_modelMat;
+    
+    /* shader model matrix uniform location */
+    GLuint m_modelMatLoc;
+
+    /* shader program to use for drawing */
+    GLuint m_shaderProg;
+
+    /* rotation */
+    GLfloat   m_rotAngle;
+    glm::vec3 m_rotAxis;
+
+    /* translation */
+    glm::vec3 m_pos;
+
+    /* scale */
+    glm::vec3 m_scale;
+
+    /* recreates the model matrix from rotation, position, etc. */
+    void updateModelMat(void);
 };
 
 #endif // _MODEL_H_INCLUDED_

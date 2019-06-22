@@ -84,7 +84,7 @@ void Cube::scale(glm::vec3 scale)
     updateModelMat();
 }
 
-glm::vec3 Cube::getPos(void)
+glm::vec3 Cube::getPos(void) const
 {
     return m_pos;
 }

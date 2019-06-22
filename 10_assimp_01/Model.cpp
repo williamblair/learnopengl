@@ -6,18 +6,93 @@
  */
 Model::Model(const char *path)
 {
+    /* Load the data with assimp */
     printf("Before model load\n");
     load_model(path);
+
+    /* Init the model matrix */
+    m_modelMat = glm::mat4(1.0f); // start with identity
+    m_modelMat = glm::scale(m_modelMat, glm::vec3(1.0f, 1.0f, 1.0f)); // scale the cube vertices
+    m_modelMat = glm::translate(m_modelMat, glm::vec3(0.0f, 0.0f, 0.0f)); // translate cube vertices
+    m_modelMat = glm::rotate(m_modelMat, glm::radians(0.0f), glm::vec3(1.0f, 0.0f, 0.0f)); // rotate vertices
+
+    /* Init transformation vars */
+    m_rotAngle = 0.0f;
+    m_rotAxis = glm::vec3(0.0f, 1.0f, 0.0f);
+    m_pos = glm::vec3(0.0f, 0.0f, 0.0f);
+    m_scale = glm::vec3(1.0f, 1.0f, 1.0f);
+
+    updateModelMat();
 }
+
+void Model::updateModelMat(void)
+{
+    /* Recreate model matrix */
+    m_modelMat = glm::mat4(1.0f); // start with identity
+    m_modelMat = glm::scale(m_modelMat, m_scale); // scale the cube vertices
+    m_modelMat = glm::translate(m_modelMat, m_pos); // translate cube vertices
+    m_modelMat = glm::rotate(m_modelMat, glm::radians(m_rotAngle), m_rotAxis); // rotate vertices
+}
+
+/*
+ * Setters
+ */
+void Model::setModelMatLoc(GLuint loc)
+{
+    m_modelMatLoc = loc;
+}
+void Model::setShaderProg(GLuint prog)
+{
+    m_shaderProg = prog;
+}
+
+/*
+ * Getters
+ */
+glm::vec3 Model::getPos(void) const
+{
+    return m_pos;
+}
+
+/*
+ * Transformations
+ */
+void Model::rotate(GLfloat angle, glm::vec3 axis)
+{
+    /* Recreate model matrix */
+    m_rotAngle = angle;
+    m_rotAxis  = glm::vec3(axis);
+    updateModelMat();
+}
+
+void Model::move(glm::vec3 pos)
+{
+    /* Recreate model matrix */
+    m_pos = glm::vec3(pos);
+    updateModelMat();
+}
+
+void Model::scale(glm::vec3 scale)
+{
+    m_scale = glm::vec3(scale);
+    updateModelMat();
+}
+
 
 /*
  * Draw the model
  */
-void Model::draw(GLuint shaderProg)
+void Model::draw(void)
 {
+    /* Tell openGL to use the associated shader */
+    glUseProgram(m_shaderProg);
+
+    /* Send the shader the model matrix */
+    glUniformMatrix4fv(m_modelMatLoc, 1, GL_FALSE, glm::value_ptr(m_modelMat));
+
     /* Draw each mesh */
     for (size_t i=0; i<m_meshes.size(); ++i) {
-        m_meshes[i].draw(shaderProg);
+        m_meshes[i].draw(m_shaderProg);
     }
 }
 

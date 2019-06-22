@@ -311,39 +311,26 @@ int main(int argc, char *argv[])
 
     camera.setWindow(&window);
 
-    //Model cri_model("../crysis-nano-suit-2/source/scene.fbx");
-    Model cri_model("../al.obj");
-
     // create buffers
     init();
+
+    //Model cri_model("../crysis-nano-suit-2/source/scene.fbx");
+    Model cri_model("../al.obj");
+    cri_model.setShaderProg(program);
+    cri_model.setModelMatLoc(modelMatLoc);
+    cri_model.scale(glm::vec3(0.1f, 0.1f, 0.1f));
+    cri_model.move(glm::vec3(-1.0f, -2.0f, -5.0f));
 
 
     while(!window.shouldClose())
     {
 
-        // change light color
-        glm::vec3 lightColor;
-        lightColor.x = sin(glfwGetTime() * 2.0f);
-        lightColor.y = sin(glfwGetTime() * 0.7f);
-        lightColor.z = sin(glfwGetTime() * 1.3f);
-
-        glm::vec3 ambientColor;
-        ambientColor.x = cos(glfwGetTime() * 1.0f);
-        ambientColor.y = cos(glfwGetTime() * 0.3f);
-        ambientColor.z = cos(glfwGetTime() * 2.3f);
-        
-
-        glm::vec3 diffuseColor = lightColor * glm::vec3(0.5f);
-        ambientColor = ambientColor * glm::vec3(0.8f);
-
-        glUseProgram(program);
-        glUniform3fv(lampDiffuseLoc, 1, glm::value_ptr(diffuseColor));
-        glUniform3fv(lampColorLoc, 1, glm::value_ptr(ambientColor));
-
-
         camera.update();
         update_matrices();
         display();
+
+        cri_model.draw();
+
         window.update();
     }
 

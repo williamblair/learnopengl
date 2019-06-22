@@ -40,7 +40,7 @@ public:
 
     // set/get the cube's position
     void move(glm::vec3 pos);
-    glm::vec3 getPos(void);
+    glm::vec3 getPos(void) const;
 
 private:
 
