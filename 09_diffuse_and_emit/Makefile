@@ -1,10 +1,10 @@
-#CC = g++
-CC = mingw32-g++
+CC = g++
+#CC = mingw32-g++
 SOURCES = ./*.cpp
 
 CFLAGS = -g -D_DEBUG -std=c++11
-# LIBS = -lGLEW -lGLU -lGL -lglfw
-LIBS = -lglew32 -lglfw3 -lopengl32 -lglu32 -lgdi32
+ LIBS = -lGLEW -lGLU -lGL -lglfw
+#LIBS = -lglew32 -lglfw3 -lopengl32 -lglu32 -lgdi32
 
 TARGET = main
 
