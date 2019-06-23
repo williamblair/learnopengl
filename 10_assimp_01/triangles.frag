@@ -53,6 +53,8 @@ void main()
     // combine
     vec3 result = ambient + diffuse + specular;
     fColor = vec4(result, 1.0);
+    // DEBUG!
+    //fColor = vec4(1.0f, 0.0f, 0.0f, 1.0f);
 
     // DEBUG!
     //fColor = vec4(normalize(normal), 1.0);

@@ -4,6 +4,7 @@
 
 #include "Window.h"
 #include "LoadShaders.h"
+#include "Shader.h"
 #include "Camera.h"
 #include "Cube.h"
 #include "Mesh.h"
@@ -33,6 +34,7 @@ Cube cube;
 
 // shader program
 GLuint program;
+Shader mainShader;
 
 // matrix locations
 GLuint modelMatLoc;
@@ -57,6 +59,7 @@ GLuint viewPosLoc;
 
 Cube lamp;
 GLuint lampShaderProgram;
+Shader lampShader;
 glm::vec3 lamp_pos = glm::vec3(1.0f, 0.0f, 0.0f);
 GLuint lampLightLoc;
 GLuint lampColorLoc;
@@ -161,6 +164,8 @@ void init_texture2()
 
 void init_matuniform()
 {
+//    GLuint program = mainShader.GetProgram();
+
 // ------------------------------------------------------------------------------------
 //
 // Projection Matrix
@@ -204,33 +209,19 @@ void init_matuniform()
 
 void init(void)
 {
-    // regular object shader
-    ShaderInfo shaders[] = {
-        { GL_VERTEX_SHADER, "triangles.vert", 0 },
-        { GL_FRAGMENT_SHADER, "triangles.frag", 0},
-        { GL_NONE, NULL, 0 }
-    };
-
-    program = LoadShaders(shaders);
-    if (program == 0) {
-        std::cout << "Error loading shaders!\n";
+    if ( !mainShader.Load("triangles.vert", "triangles.frag") ) {
         exit(EXIT_FAILURE);
     }
-    glUseProgram(program);
+    program = mainShader.GetProgram();
+    mainShader.Use();
 
-    // lamp shader (so color doesn't affect the lamp)
-    ShaderInfo lampShaders[] = {
-        { GL_VERTEX_SHADER, "lampShader.vert", 0 },
-        { GL_FRAGMENT_SHADER, "lampShader.frag", 0},
-        { GL_NONE, NULL, 0 }
-    };
-    lampShaderProgram = LoadShaders(lampShaders);
-    if (lampShaderProgram == 0) {
-        std::cout << "Error loading lamp shader!\n";
+    if ( !lampShader.Load("lampShader.vert", "lampShader.frag") ) {
         exit(EXIT_FAILURE);
     }
+    lampShaderProgram = lampShader.GetProgram();
 
     // tell the cube to use this shader
+    //GLuint program = mainShader.GetProgram();
     cube.setShaderProg(program);
     cube.init();
     cube.move(glm::vec3(0.0f, -5.0f, -1.0f));
