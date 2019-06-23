@@ -3,12 +3,12 @@
 //
 
 #include "Window.h"
-#include "LoadShaders.h"
 #include "Shader.h"
 #include "Camera.h"
 #include "Cube.h"
 #include "Mesh.h"
 #include "Model.h"
+#include "Texture.h"
 
 // matrix library
 #include <glm/glm.hpp>
@@ -25,8 +25,7 @@
 const float SCREEN_WIDTH = 640.0f, SCREEN_HEIGHT = 480.0f;
 
 // Texture objects
-GLuint texture;
-GLuint texture2;
+Texture texture, texture2;
 
 // cube to draw
 GLfloat cube_angle = 0.0f;
@@ -98,63 +97,20 @@ void init_light()
 
 void init_texture()
 {
-    /* 1. Get the texture data from an image */
-    int width, height, nChannels;
-    unsigned char *data = stbi_load("../container.jpg", &width, &height, &nChannels, 0);
-    if (data == NULL) {
-        std::cout << "Error loading texture\n";
-        exit(EXIT_FAILURE);
+    if ( !texture.Load("container.jpg", "../") ) {
+        exit( EXIT_FAILURE );
     }
-
-    /* 2. Generate an opengl texture */
-    glGenTextures(1, &texture);
-    glBindTexture(GL_TEXTURE_2D, texture);
-
-    /* Set filtering parameters (optional?) */
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-    /* 3. Generate the texture image from texture data */
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
-    glGenerateMipmap(GL_TEXTURE_2D);
-
-    /* 4. Free data if necessary */
-    stbi_image_free(data);
 
     /* Bind the texture to a sampler 
      * In this case GL_TEXTURE0 */
-    glUniform1i(glGetUniformLocation(program, "myTexture"), 0);
+    glUniform1i( glGetUniformLocation(program, "myTexture"), 0 );
 }
 
 void init_texture2()
 {
-    /* 1. Get the texture data from an image */
-    int width, height, nChannels;
-    unsigned char *data = stbi_load("../awesomeface.png", &width, &height, &nChannels, 0);
-    if (data == NULL) {
-        std::cout << "Error loading texture\n";
+    if ( !texture2.Load("awesomeface.png", "../") ) {
         exit(EXIT_FAILURE);
     }
-
-    /* 2. Generate an opengl texture */
-    glGenTextures(1, &texture2);
-    glBindTexture(GL_TEXTURE_2D, texture2);
-
-    /* Set filtering parameters (optional?) */
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-    /* 3. Generate the texture image from texture data 
-     * This image is a png so it has alpha values as well */
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
-    glGenerateMipmap(GL_TEXTURE_2D);
-
-    /* 4. Free data if necessary */
-    stbi_image_free(data);
 
     /* Bind the texture to a sampler 
      * In this case GL_TEXTURE1 */
@@ -221,7 +177,6 @@ void init(void)
     lampShaderProgram = lampShader.GetProgram();
 
     // tell the cube to use this shader
-    //GLuint program = mainShader.GetProgram();
     cube.setShaderProg(program);
     cube.init();
     cube.move(glm::vec3(0.0f, -5.0f, -1.0f));
@@ -278,10 +233,10 @@ void display(void)
     glClear(GL_DEPTH_BUFFER_BIT); // will have a blank screen without this
 
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, texture);
+    texture.Bind();
 
     glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, texture2);
+    texture2.Bind();
 
     cube.draw();
 

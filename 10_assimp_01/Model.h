@@ -63,7 +63,7 @@ private:
     );
 
     /* Load a texture using assimp */
-    GLuint load_texture(const char *filename, const char *dir);
+    //GLuint load_texture(const char *filename, const char *dir);
 
 
     /* model matrix */

@@ -243,15 +243,21 @@ std::vector<Texture> Model::load_mat_textures(aiMaterial *mat, aiTextureType typ
         printf("strlen: %d\n", strlen(str.data));
 
         Texture texture;
-        texture.id = strlen(str.data) > 4 ? load_texture(str.data, m_directory.c_str()) : -1;
+        /*texture.id = strlen(str.data) > 4 ? load_texture(str.data, m_directory.c_str()) : -1;
         texture.type = type_name;
-        texture.path = std::string(str.data);
-        textures.push_back(texture);
+        texture.path = std::string(str.data); */
+        texture.SetType( type_name );
+        if ( !texture.Load( std::string(str.data), m_directory ) ) {
+            // TODO - logging
+            printf("Failed to load texture at index %d: %s\n", i, str.data);
+        }
+        textures.push_back( texture );
     }
 
     return textures;
 }
 
+#if 0
 /*
  * Load a texture using STB into GL and assign it an ID
  */
@@ -311,6 +317,6 @@ GLuint Model::load_texture(const char *filename, const char *dir)
 
     return texture;
 }
-
+#endif
 
 

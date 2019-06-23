@@ -1,11 +1,9 @@
-
-#include "Window.h"
-#include "LoadShaders.h"
-
 // matrix library
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+
+#include "Window.h"
 
 
 #ifndef _CUBE_H_INCLUDED_
