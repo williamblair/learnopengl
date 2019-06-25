@@ -9,6 +9,7 @@
 #include "Mesh.h"
 #include "Model.h"
 #include "Texture.h"
+#include "Light.h"
 
 // matrix library
 #include <glm/glm.hpp>
@@ -50,19 +51,11 @@ glm::mat4 projMat;
 
 // camera stuff
 Camera camera;
-
-// Light stuff
-GLuint vao_light;
-GLuint lightVecLoc;
 GLuint viewPosLoc;
 
-Cube lamp;
+// Light stuff
 GLuint lampShaderProgram;
-Shader lampShader;
-glm::vec3 lamp_pos = glm::vec3(1.0f, 0.0f, 0.0f);
-GLuint lampLightLoc;
-GLuint lampColorLoc;
-GLuint lampDiffuseLoc;
+Light light;
 
 //-----------------------------------------------------------------------------------
 //
@@ -70,29 +63,7 @@ GLuint lampDiffuseLoc;
 //
 void init_light()
 {
-    glUseProgram(program);
-
-    // create a light vertex array obj
-    glGenVertexArrays(1, &vao_light);
-    glBindVertexArray(vao_light);
-
-    // stop using our light VAO
-    glBindVertexArray(0);
-
-    // set the light uniform position
-    lightVecLoc = glGetUniformLocation(program, "uLightPos");
-    glm::vec3 lightPos = lamp.getPos();
-    glUniform4fv(lightVecLoc, 1, glm::value_ptr(lightPos));
-
-    // set the light properties
-    lampColorLoc = glGetUniformLocation(program, "light.ambient");
-    lampDiffuseLoc = glGetUniformLocation(program, "light.diffuse");
-    GLuint lampSpecLoc = glGetUniformLocation(program, "light.specular");
-
-    glUniform3f(lampColorLoc, 0.2f, 0.2f, 0.2f);
-    glUniform3f(lampDiffuseLoc, 0.5f, 0.5f, 0.5f);
-    glUniform3f(lampSpecLoc, 1.0f, 1.0f, 1.0f);
-
+    light.SetWorldShaderProgram( program );
 }
 
 void init_texture()
@@ -154,13 +125,7 @@ void init_matuniform()
 
     glUniformMatrix4fv(lampProjMatLoc, 1, GL_FALSE, glm::value_ptr(projMat));
 
-    lamp.setModelMatLoc(lampModelMatLoc);
-
-    glUseProgram(program);
-    lampLightLoc = glGetUniformLocation(program, "uLightPos");
-    glm::vec3 lampPos = lamp.getPos();
-    glUniform3f(lampLightLoc, lampPos.x, lampPos.y, lampPos.z);
-
+    light.SetModelMatLoc( lampModelMatLoc );
 }
 
 void init(void)
@@ -171,10 +136,10 @@ void init(void)
     program = mainShader.GetProgram();
     mainShader.Use();
 
-    if ( !lampShader.Load("lampShader.vert", "lampShader.frag") ) {
-        exit(EXIT_FAILURE);
+    if ( !light.LoadShader( "lampShader.vert", "lampShader.frag" ) ) {
+        exit( EXIT_FAILURE );
     }
-    lampShaderProgram = lampShader.GetProgram();
+    lampShaderProgram = light.GetShaderProgram();
 
     // tell the cube to use this shader
     cube.setShaderProg(program);
@@ -193,9 +158,9 @@ void init(void)
     glUniform3f(cubeSpecLoc, 0.5f, 0.5f, 0.5f);
     glUniform1f(cubeShiniLoc, 32.0f);
 
-    lamp.setShaderProg(lampShaderProgram);
-    lamp.init();
-    lamp.move(glm::vec3(0.5f, 0.0f, 0.0f));
+    //lamp.setShaderProg(lampShaderProgram);
+    //lamp.init();
+    //lamp.move(glm::vec3(0.5f, 0.0f, 0.0f));
 
     init_texture();
     init_texture2();
@@ -240,7 +205,7 @@ void display(void)
 
     cube.draw();
 
-    lamp.draw();
+    light.Draw();
 }
 
 
