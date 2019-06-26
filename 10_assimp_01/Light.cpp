@@ -98,6 +98,16 @@ GLuint Light::GetShaderProgram(void)
 
 /*
 ===================
+Get the shader wrapper object
+===================
+*/
+Shader & Light::GetShader(void)
+{
+    return m_shader;
+}
+
+/*
+===================
 Draw
 ===================
 */

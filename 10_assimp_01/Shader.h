@@ -49,6 +49,14 @@ public:
     */
     void Use(void) const;
 
+    /*
+    ====================
+    Set World Matrices
+    ====================
+    */
+    void SetViewMat(const GLfloat *viewMat) const;
+    void SetProjMat(const GLfloat *projMat) const;
+
 private:
     /*
     ====================
@@ -57,6 +65,9 @@ private:
     */
     GLuint m_program;
     bool   m_wasCompiled; // true if shader compilation was successful
+
+    GLuint m_viewMatLoc; // shader locations of the view and projection matrices
+    GLuint m_projMatLoc;
 };
 
 #endif // _SHADER_H_INCLUDED_

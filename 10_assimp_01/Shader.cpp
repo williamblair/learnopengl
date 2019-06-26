@@ -106,6 +106,12 @@ bool Shader::Load(const std::string &vertFile, const std::string &fragFile)
         delete [] log;
     }
 
+    /*
+     * Get and store uniform locations
+     */
+    m_viewMatLoc = glGetUniformLocation( m_program, "uViewMat" );
+    m_projMatLoc = glGetUniformLocation( m_program, "uProjMat" );
+
     /* If we've reached this point then all is well */
     m_wasCompiled = true;
 
@@ -140,6 +146,25 @@ UseProgram
 void Shader::Use(void) const
 {
     glUseProgram( m_program );
+}
+
+/*
+====================
+Set World Matrices
+====================
+*/
+void Shader::SetViewMat(const GLfloat *viewMat) const
+{
+    glUseProgram(m_program);
+
+    glUniformMatrix4fv(m_viewMatLoc, 1, GL_FALSE, viewMat);
+}
+
+void Shader::SetProjMat(const GLfloat *projMat) const
+{
+    glUseProgram( m_program );
+    
+    glUniformMatrix4fv( m_projMatLoc, 1, GL_FALSE, projMat );
 }
 
 /*

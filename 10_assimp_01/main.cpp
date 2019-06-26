@@ -37,13 +37,8 @@ GLuint program;
 Shader mainShader;
 
 // matrix locations
+// TODO - better system for this; just internalize or something
 GLuint modelMatLoc;
-GLuint viewMatLoc;
-GLuint projMatLoc;
-
-GLuint lampModelMatLoc;
-GLuint lampViewMatLoc;
-GLuint lampProjMatLoc;
 
 // our transformation matrices
 glm::mat4 viewMat;
@@ -51,7 +46,6 @@ glm::mat4 projMat;
 
 // camera stuff
 Camera camera;
-GLuint viewPosLoc;
 
 // Light stuff
 GLuint lampShaderProgram;
@@ -105,27 +99,17 @@ void init_matuniform()
      * We use column-major ordering so no need to switch (as opposed to row major like in mathematics)
      */
     modelMatLoc = glGetUniformLocation(program, "uModelMat");
-    viewMatLoc = glGetUniformLocation(program, "uViewMat");
-    projMatLoc = glGetUniformLocation(program, "uProjMat");
 
-    //glUniformMatrix4fv(viewMatLoc, 1, GL_FALSE, glm::value_ptr(viewMat));
-    glUniformMatrix4fv(projMatLoc, 1, GL_FALSE, glm::value_ptr(projMat));
+    mainShader.SetProjMat( glm::value_ptr(projMat) );
 
     // send the model matrix location to the cube
-    cube.setModelMatLoc(modelMatLoc);
+    cube.setModelMatLoc( modelMatLoc );
 
 // -----------------------------------------------------------------------------------
 //
 // Lamp Shader Uniforms
 //
-    glUseProgram(lampShaderProgram);
-    lampModelMatLoc = glGetUniformLocation(lampShaderProgram, "uModelMat");
-    lampViewMatLoc = glGetUniformLocation(lampShaderProgram, "uViewMat");
-    lampProjMatLoc = glGetUniformLocation(lampShaderProgram, "uProjMat");
-
-    glUniformMatrix4fv(lampProjMatLoc, 1, GL_FALSE, glm::value_ptr(projMat));
-
-    light.SetModelMatLoc( lampModelMatLoc );
+    light.GetShader().SetProjMat( glm::value_ptr(projMat) );
 }
 
 void init(void)
@@ -158,10 +142,6 @@ void init(void)
     glUniform3f(cubeSpecLoc, 0.5f, 0.5f, 0.5f);
     glUniform1f(cubeShiniLoc, 32.0f);
 
-    //lamp.setShaderProg(lampShaderProgram);
-    //lamp.init();
-    //lamp.move(glm::vec3(0.5f, 0.0f, 0.0f));
-
     init_texture();
     init_texture2();
     init_matuniform();
@@ -173,15 +153,11 @@ void init(void)
 
 void update_matrices()
 {
-    glUseProgram(program);
-    glUniformMatrix4fv(viewMatLoc, 1, GL_FALSE, camera.getLookAtPtr());
-    glUniformMatrix4fv(projMatLoc, 1, GL_FALSE, glm::value_ptr(projMat));
+    mainShader.SetViewMat(camera.getLookAtPtr());
+    mainShader.SetProjMat(glm::value_ptr(projMat));
 
-    glUniform3fv(viewPosLoc, 1, camera.getPosPtr());
-
-    glUseProgram(lampShaderProgram);
-    glUniformMatrix4fv(lampViewMatLoc, 1, GL_FALSE, camera.getLookAtPtr());
-    glUniformMatrix4fv(lampProjMatLoc, 1, GL_FALSE, glm::value_ptr(projMat));
+    light.GetShader().SetViewMat( camera.getLookAtPtr() );
+    light.GetShader().SetProjMat( glm::value_ptr(projMat) );
 }
 
 

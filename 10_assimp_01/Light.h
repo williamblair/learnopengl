@@ -70,6 +70,13 @@ public:
     GLuint GetShaderProgram(void);
 
     /*
+    ==================
+    Get the shader wrapper object
+    ==================
+    */
+    Shader & GetShader(void); // lets see if this works...
+
+    /*
     ===================
     Draw
     ===================
