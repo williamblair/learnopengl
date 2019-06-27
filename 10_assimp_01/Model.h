@@ -16,6 +16,7 @@
 
 #include "Mesh.h"
 #include "Texture.h"
+#include "Material.h"
 
 #include <vector>
 #include <string>
@@ -87,6 +88,9 @@ private:
 
     /* recreates the model matrix from rotation, position, etc. */
     void updateModelMat(void);
+
+    /* Material */
+    Material m_material;
 };
 
 #endif // _MODEL_H_INCLUDED_

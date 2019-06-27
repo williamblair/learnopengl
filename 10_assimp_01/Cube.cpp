@@ -61,6 +61,7 @@ void Cube::setModelMatLoc(GLuint loc)
 void Cube::setShaderProg(GLuint prog)
 {
     m_shaderProg = prog;
+    m_material.SetShaderProg( prog );
 }
 
 void Cube::rotate(GLfloat angle, glm::vec3 axis)
@@ -103,6 +104,9 @@ void Cube::draw(void)
     /* Use the appropriate shader */
     glUseProgram(m_shaderProg);
 
+    /* Send phong lighting properties */
+    m_material.Update();
+
     /* Bind the vertex array object */
     glBindVertexArray(m_vao);
 
@@ -111,6 +115,11 @@ void Cube::draw(void)
 
     /* Draw arrays */
     glDrawArrays(GL_TRIANGLES, 0, 36);
+}
+
+Material & Cube::GetMaterial(void)
+{
+    return m_material;
 }
 
 

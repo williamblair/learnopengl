@@ -3,6 +3,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+#include "Material.h"
 #include "Window.h"
 
 
@@ -40,6 +41,9 @@ public:
     void move(glm::vec3 pos);
     glm::vec3 getPos(void) const;
 
+    // Get the cube's material object
+    Material & GetMaterial(void);
+
 private:
 
     // vertex array object/vertex buffer object
@@ -70,6 +74,9 @@ private:
 
     // scale
     glm::vec3 m_scale;
+
+    // Material
+    Material m_material;
 
     // recreates the model matrix from rotation, position, etc.
     void updateModelMat(void);

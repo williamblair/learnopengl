@@ -10,6 +10,7 @@
 #include "Model.h"
 #include "Texture.h"
 #include "Light.h"
+#include "Material.h"
 
 // matrix library
 #include <glm/glm.hpp>
@@ -132,6 +133,7 @@ void init(void)
     cube.scale(glm::vec3(1.5f, 0.1f, 1.5f));
 
     // set cube material properties
+#if 0
     GLuint cubeAmbLoc = glGetUniformLocation(program, "material.ambient");
     GLuint cubeDiffLoc = glGetUniformLocation(program, "material.diffuse");
     GLuint cubeSpecLoc = glGetUniformLocation(program, "material.specular");
@@ -141,7 +143,7 @@ void init(void)
     glUniform3f(cubeDiffLoc, 1.0f, 0.5f, 0.31f);
     glUniform3f(cubeSpecLoc, 0.5f, 0.5f, 0.5f);
     glUniform1f(cubeShiniLoc, 32.0f);
-
+#endif
     init_texture();
     init_texture2();
     init_matuniform();
