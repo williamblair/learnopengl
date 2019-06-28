@@ -51,13 +51,12 @@ void Mesh::init_mesh(void)
 
     /* Vertex attribs */
     glEnableVertexAttribArray(0); // position
-    glEnableVertexAttribArray(1); // normal
-    glEnableVertexAttribArray(2); // texture
+    glEnableVertexAttribArray(1); // texture
+    glEnableVertexAttribArray(2); // normal
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)sizeof(glm::vec3));
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), 
-        (void*)(sizeof(glm::vec3)*2)
-    );
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), 
+        (void*)offsetof(Vertex, tex_coords));
+    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, normal));
 
     glBindVertexArray(0);
 }
@@ -71,10 +70,12 @@ void Mesh::draw(GLuint shaderProgram)
     unsigned int specular_num = 1;
 
     /* Activate textures */
+#if 0
     for ( size_t i = 0; i < m_textures.size(); ++i ) 
     {
         glActiveTexture(GL_TEXTURE0 + i);
 
+#if 0
         std::string number;
         std::string name = m_textures[i].GetType();
         if (name == "texture_diffuse") {
@@ -87,10 +88,12 @@ void Mesh::draw(GLuint shaderProgram)
         /* Set the texture number */
         GLuint loc = glGetUniformLocation(shaderProgram, ("material."+name+number).c_str());
         glUniform1f(loc, i);
+#endif
 
         glBindTexture(GL_TEXTURE_2D, m_textures[i].GetID());
     }
     glActiveTexture(GL_TEXTURE0);
+#endif
 
     /* Draw the mesh */
     glBindVertexArray(m_vao);

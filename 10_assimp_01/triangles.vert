@@ -2,11 +2,9 @@
 #version 400 core
 
 layout( location = 0 ) in vec4 vPosition;
-layout( location = 1 ) in vec4 vColor;
-layout( location = 2 ) in vec2 vTexCoord;
-layout( location = 3 ) in vec3 vNormal;
+layout( location = 1 ) in vec2 vTexCoord;
+layout( location = 2 ) in vec3 vNormal;
 
-out vec4 color;
 out vec2 texCoord;
 out vec3 normal;
 out vec3 fragPos;
@@ -22,7 +20,6 @@ main()
 {
     gl_Position = uProjMat * uViewMat * uModelMat * vec4(vPosition.x, vPosition.y, vPosition.z, 1.0);
     fragPos = vec3(uViewMat * uModelMat * vPosition);
-    color = vColor;
     texCoord = vTexCoord;
     // This is inefficient and should not be done here!
     //    should calculate the normal matrix on the CPU and send it

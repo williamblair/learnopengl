@@ -44,6 +44,7 @@ void Model::setModelMatLoc(GLuint loc)
 void Model::setShaderProg(GLuint prog)
 {
     m_shaderProg = prog;
+    m_material.SetShaderProg( prog );
 }
 
 /*
@@ -52,6 +53,11 @@ void Model::setShaderProg(GLuint prog)
 glm::vec3 Model::getPos(void) const
 {
     return m_pos;
+}
+
+Material & Model::GetMaterial(void)
+{
+    return m_material;
 }
 
 /*
@@ -89,6 +95,9 @@ void Model::draw(void)
 
     /* Send the shader the model matrix */
     glUniformMatrix4fv(m_modelMatLoc, 1, GL_FALSE, glm::value_ptr(m_modelMat));
+
+    /* Send the shader material properties */
+    m_material.Update();
 
     /* Draw each mesh */
     for (size_t i=0; i<m_meshes.size(); ++i) {

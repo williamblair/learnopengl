@@ -1,6 +1,5 @@
 #version 450 core
 
-in vec4 color;
 in vec2 texCoord;
 in vec3 normal;
 in vec3 fragPos;
@@ -54,7 +53,7 @@ void main()
     vec3 result = ambient + diffuse + specular;
     fColor = vec4(result, 1.0);
     // DEBUG!
-    //fColor = vec4(1.0f, 0.0f, 0.0f, 1.0f);
+    //fColor = vec4(norm, 1.0f);
 
     // DEBUG!
     //fColor = vec4(normalize(normal), 1.0);

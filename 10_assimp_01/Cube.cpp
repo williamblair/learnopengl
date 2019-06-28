@@ -20,18 +20,17 @@ bool Cube::init(void)
     
         /* 4. Set data attributes */
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, // position attributes
-                12*sizeof(GLfloat), (void*)0);
-        glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, // color attributes
-                12*sizeof(GLfloat), (void*)(3*sizeof(GLfloat)));
-        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, // color attributes
-                12*sizeof(GLfloat), (void*)(7*sizeof(GLfloat)));
-        glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, // color attributes
-                12*sizeof(GLfloat), (void*)(9*sizeof(GLfloat)));
+                8*sizeof(GLfloat), (void*)0);
+        //glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, // color attributes
+        //        12*sizeof(GLfloat), (void*)(3*sizeof(GLfloat)));
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, // Texture coordinates
+                8*sizeof(GLfloat), (void*)(3*sizeof(GLfloat)));
+        glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, // Normals attributes
+                8*sizeof(GLfloat), (void*)(5*sizeof(GLfloat)));
         
         glEnableVertexAttribArray(0);
         glEnableVertexAttribArray(1);
         glEnableVertexAttribArray(2);
-        glEnableVertexAttribArray(3);
 
     /* 5. Stop using the attrib for now,
      * Generally this isn't really necessary */
@@ -125,49 +124,49 @@ Material & Cube::GetMaterial(void)
 
 // cube vertices
 // all cubes will share the same vertices
-const GLfloat Cube::m_vertices[(3+4+2+3)*6*6] = {
-    // position          // color                   // texture coords   // normal
-    -0.5f, -0.5f, -0.5f,  1.0f, 1.0f, 1.0f, 1.0f,   0.0f, 0.0f,         0.0f, 0.0f, -1.0f,
-     0.5f, -0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 1.0f,    1.0f, 0.0f,         0.0f, 0.0f, -1.0f,
-     0.5f,  0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 1.0f,    1.0f, 1.0f,         0.0f, 0.0f, -1.0f,
-     0.5f,  0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 1.0f,    1.0f, 1.0f,         0.0f, 0.0f, -1.0f,
-    -0.5f,  0.5f, -0.5f,  1.0f, 1.0f, 1.0f, 1.0f,   0.0f, 1.0f,         0.0f, 0.0f, -1.0f,
-    -0.5f, -0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 1.0f,    0.0f, 0.0f,         0.0f, 0.0f, -1.0f,
+const GLfloat Cube::m_vertices[(3+2+3)*6*6] = {
+    // position              // texture coords   // normal
+    -0.5f, -0.5f, -0.5f,     0.0f, 0.0f,         0.0f, 0.0f, -1.0f,
+     0.5f, -0.5f, -0.5f,     1.0f, 0.0f,         0.0f, 0.0f, -1.0f,
+     0.5f,  0.5f, -0.5f,     1.0f, 1.0f,         0.0f, 0.0f, -1.0f,
+     0.5f,  0.5f, -0.5f,     1.0f, 1.0f,         0.0f, 0.0f, -1.0f,
+    -0.5f,  0.5f, -0.5f,     0.0f, 1.0f,         0.0f, 0.0f, -1.0f,
+    -0.5f, -0.5f, -0.5f,     0.0f, 0.0f,         0.0f, 0.0f, -1.0f,
 
-    -0.5f, -0.5f,  0.5f, 1.0f, 1.0f, 1.0f, 1.0f,    0.0f, 0.0f,         0.0f, 0.0f,  1.0f,
-     0.5f, -0.5f,  0.5f, 1.0f, 1.0f, 1.0f, 1.0f,    1.0f, 0.0f,         0.0f, 0.0f,  1.0f,
-     0.5f,  0.5f,  0.5f, 1.0f, 1.0f, 1.0f, 1.0f,    1.0f, 1.0f,         0.0f, 0.0f,  1.0f,
-     0.5f,  0.5f,  0.5f, 1.0f, 1.0f, 1.0f, 1.0f,    1.0f, 1.0f,         0.0f, 0.0f,  1.0f,
-    -0.5f,  0.5f,  0.5f, 1.0f, 1.0f, 1.0f, 1.0f,    0.0f, 1.0f,         0.0f, 0.0f,  1.0f,
-    -0.5f, -0.5f,  0.5f, 1.0f, 1.0f, 1.0f, 1.0f,    0.0f, 0.0f,         0.0f, 0.0f,  1.0f,
+    -0.5f, -0.5f,  0.5f,     0.0f, 0.0f,         0.0f, 0.0f,  1.0f,
+     0.5f, -0.5f,  0.5f,     1.0f, 0.0f,         0.0f, 0.0f,  1.0f,
+     0.5f,  0.5f,  0.5f,     1.0f, 1.0f,         0.0f, 0.0f,  1.0f,
+     0.5f,  0.5f,  0.5f,     1.0f, 1.0f,         0.0f, 0.0f,  1.0f,
+    -0.5f,  0.5f,  0.5f,     0.0f, 1.0f,         0.0f, 0.0f,  1.0f,
+    -0.5f, -0.5f,  0.5f,     0.0f, 0.0f,         0.0f, 0.0f,  1.0f,
 
-    -0.5f,  0.5f,  0.5f,  1.0f, 1.0f, 1.0f, 1.0f,    1.0f, 0.0f,        -1.0f, 0.0f, 0.0f,
-    -0.5f,  0.5f, -0.5f,  1.0f, 1.0f, 1.0f, 1.0f,     1.0f, 1.0f,        -1.0f, 0.0f, 0.0f,
-    -0.5f, -0.5f, -0.5f,  1.0f, 1.0f, 1.0f, 1.0f,   0.0f, 1.0f,        -1.0f, 0.0f, 0.0f,
-    -0.5f, -0.5f, -0.5f,  1.0f, 1.0f, 1.0f, 1.0f,   0.0f, 1.0f,        -1.0f, 0.0f, 0.0f,
-    -0.5f, -0.5f,  0.5f,  1.0f, 1.0f, 1.0f, 1.0f,   0.0f, 0.0f,        -1.0f, 0.0f, 0.0f,
-    -0.5f,  0.5f,  0.5f,  1.0f, 1.0f, 1.0f, 1.0f,   1.0f, 0.0f,        -1.0f, 0.0f, 0.0f,
+    -0.5f,  0.5f,  0.5f,      1.0f, 0.0f,        -1.0f, 0.0f, 0.0f,
+    -0.5f,  0.5f, -0.5f,       1.0f, 1.0f,        -1.0f, 0.0f, 0.0f,
+    -0.5f, -0.5f, -0.5f,     0.0f, 1.0f,        -1.0f, 0.0f, 0.0f,
+    -0.5f, -0.5f, -0.5f,     0.0f, 1.0f,        -1.0f, 0.0f, 0.0f,
+    -0.5f, -0.5f,  0.5f,     0.0f, 0.0f,        -1.0f, 0.0f, 0.0f,
+    -0.5f,  0.5f,  0.5f,     1.0f, 0.0f,        -1.0f, 0.0f, 0.0f,
 
-     0.5f,  0.5f,  0.5f,  1.0f, 1.0f, 1.0f, 1.0f,   1.0f, 0.0f,        1.0f, 0.0f, 0.0f,
-     0.5f,  0.5f, -0.5f,  1.0f, 1.0f, 1.0f, 1.0f,   1.0f, 1.0f,        1.0f, 0.0f, 0.0f,
-     0.5f, -0.5f, -0.5f,  1.0f, 1.0f, 1.0f, 1.0f,   0.0f, 1.0f,        1.0f, 0.0f, 0.0f,
-     0.5f, -0.5f, -0.5f,  1.0f, 1.0f, 1.0f, 1.0f,   0.0f, 1.0f,        1.0f, 0.0f, 0.0f,
-     0.5f, -0.5f,  0.5f,  1.0f, 1.0f, 1.0f, 1.0f,   0.0f, 0.0f,        1.0f, 0.0f, 0.0f,
-     0.5f,  0.5f,  0.5f,  1.0f, 1.0f, 1.0f, 1.0f,   1.0f, 0.0f,        1.0f, 0.0f, 0.0f,
+     0.5f,  0.5f,  0.5f,     1.0f, 0.0f,        1.0f, 0.0f, 0.0f,
+     0.5f,  0.5f, -0.5f,     1.0f, 1.0f,        1.0f, 0.0f, 0.0f,
+     0.5f, -0.5f, -0.5f,     0.0f, 1.0f,        1.0f, 0.0f, 0.0f,
+     0.5f, -0.5f, -0.5f,     0.0f, 1.0f,        1.0f, 0.0f, 0.0f,
+     0.5f, -0.5f,  0.5f,     0.0f, 0.0f,        1.0f, 0.0f, 0.0f,
+     0.5f,  0.5f,  0.5f,     1.0f, 0.0f,        1.0f, 0.0f, 0.0f,
 
-    -0.5f, -0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 1.0f,    0.0f, 1.0f,        0.0f, -1.0f, 0.0f,
-     0.5f, -0.5f, -0.5f,  1.0f, 1.0f, 1.0f, 1.0f,   1.0f, 1.0f,        0.0f, -1.0f, 0.0f,
-     0.5f, -0.5f,  0.5f, 1.0f, 1.0f, 1.0f, 1.0f,    1.0f, 0.0f,        0.0f, -1.0f, 0.0f,
-     0.5f, -0.5f,  0.5f,  1.0f, 1.0f, 1.0f, 1.0f,   1.0f, 0.0f,        0.0f, -1.0f, 0.0f,
-    -0.5f, -0.5f,  0.5f, 1.0f, 1.0f, 1.0f, 1.0f,    0.0f, 0.0f,        0.0f, -1.0f, 0.0f,
-    -0.5f, -0.5f, -0.5f,  1.0f, 1.0f, 1.0f, 1.0f,   0.0f, 1.0f,        0.0f, -1.0f, 0.0f,
+    -0.5f, -0.5f, -0.5f,     0.0f, 1.0f,        0.0f, -1.0f, 0.0f,
+     0.5f, -0.5f, -0.5f,     1.0f, 1.0f,        0.0f, -1.0f, 0.0f,
+     0.5f, -0.5f,  0.5f,     1.0f, 0.0f,        0.0f, -1.0f, 0.0f,
+     0.5f, -0.5f,  0.5f,     1.0f, 0.0f,        0.0f, -1.0f, 0.0f,
+    -0.5f, -0.5f,  0.5f,     0.0f, 0.0f,        0.0f, -1.0f, 0.0f,
+    -0.5f, -0.5f, -0.5f,     0.0f, 1.0f,        0.0f, -1.0f, 0.0f,
 
-    -0.5f,  0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 1.0f,    0.0f, 1.0f,        0.0f,  1.0f, 0.0f,
-     0.5f,  0.5f, -0.5f,  1.0f, 1.0f, 1.0f, 1.0f,   1.0f, 1.0f,        0.0f,  1.0f, 0.0f,
-     0.5f,  0.5f,  0.5f, 1.0f, 1.0f, 1.0f, 1.0f,    1.0f, 0.0f,        0.0f,  1.0f, 0.0f,
-     0.5f,  0.5f,  0.5f, 1.0f, 1.0f, 1.0f, 1.0f,    1.0f, 0.0f,        0.0f,  1.0f, 0.0f,
-    -0.5f,  0.5f,  0.5f, 1.0f, 1.0f, 1.0f, 1.0f,    0.0f, 0.0f,        0.0f,  1.0f, 0.0f,
-    -0.5f,  0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 1.0f,    0.0f, 1.0f,       0.0f,  1.0f, 0.0f
+    -0.5f,  0.5f, -0.5f,     0.0f, 1.0f,        0.0f,  1.0f, 0.0f,
+     0.5f,  0.5f, -0.5f,     1.0f, 1.0f,        0.0f,  1.0f, 0.0f,
+     0.5f,  0.5f,  0.5f,     1.0f, 0.0f,        0.0f,  1.0f, 0.0f,
+     0.5f,  0.5f,  0.5f,     1.0f, 0.0f,        0.0f,  1.0f, 0.0f,
+    -0.5f,  0.5f,  0.5f,     0.0f, 0.0f,        0.0f,  1.0f, 0.0f,
+    -0.5f,  0.5f, -0.5f,     0.0f, 1.0f,       0.0f,  1.0f, 0.0f
 };
 
 

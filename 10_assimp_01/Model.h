@@ -46,6 +46,7 @@ public:
 
     /* Getters */
     glm::vec3 getPos(void) const;
+    Material & GetMaterial(void);
 
 private:
    

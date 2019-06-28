@@ -169,10 +169,10 @@ void update_matrices()
 //
 void display(void)
 {
-    static const float black[] = { 0.0f, 0.0f, 0.0f, 0.0f };
+    static const float turquois[] = { 0.0f, 0.5f, 0.5f, 1.0f };
 
     /* Clear screen and z buffer */
-    glClearBufferfv(GL_COLOR, 0, black);
+    glClearBufferfv(GL_COLOR, 0, turquois);
     glClear(GL_DEPTH_BUFFER_BIT); // will have a blank screen without this
 
     glActiveTexture(GL_TEXTURE0);

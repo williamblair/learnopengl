@@ -63,7 +63,10 @@ private:
     GLuint m_shaderProg;
 
     // all cubes will share the same vertices
-    const static GLfloat m_vertices[(3+4+2+3)*6*6];
+    // 3 - position
+    // 2 - texture coordinates
+    // 3 - normals
+    const static GLfloat m_vertices[(3+2+3)*6*6];
 
     // rotation
     GLfloat   m_rotAngle;
