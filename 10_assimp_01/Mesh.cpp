@@ -70,7 +70,7 @@ void Mesh::draw(GLuint shaderProgram)
     unsigned int specular_num = 1;
 
     /* Activate textures */
-#if 0
+#if 1
     for ( size_t i = 0; i < m_textures.size(); ++i ) 
     {
         glActiveTexture(GL_TEXTURE0 + i);
