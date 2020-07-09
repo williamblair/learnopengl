@@ -1,149 +1,154 @@
-//
-// Test opengl application
-//
-
-#include "Window.h"
-#include "LoadShaders.h"
-
-// STB image loader
-#define STB_IMAGE_IMPLEMENTATION
-#include "../stb_image.h"
-
 #include <iostream>
+#include <cstdlib>
+#include <cmath>
 
-// Vertex Array objects
-GLuint vao1;
+#include <glad/glad.h>
+#include <GLFW/glfw3.h>
 
-// Vertex Buffer objects
-GLuint vbo1;
+#include "Texture.h"
+#include "Rectangle.h"
+#include "Shader.h"
+#include "ShaderProgram.h"
 
-// Texture objects
-GLuint texture;
+// Globals
+const size_t WINDOW_WIDTH = 800;
+const size_t WINDOW_HEIGHT = 600;
+GLFWwindow* gWindow = nullptr;
 
-//-----------------------------------------------------------------------------------
-//
-// Init
-//
-void create_vao_1()
+Rectangle gRectangle;
+Texture gTextures[2];
+Shader gVertexShader;
+Shader gFragmentShader;
+ShaderProgram gShaderProgram;
+////////////////////////////////////////////////////
+
+// GLFW callback functions
+void windowResizeCallback(GLFWwindow* window, int width, int height)
 {
-    static GLfloat vertices[] = {
-        // positions  colors                   texture coords
-        -1, -1, 0,    1.0f, 0.0f, 0.0f, 1.0f,  0.0f, 0.0f,
-        0, -1, 0,     0.0f, 1.0f, 0.0f, 1.0f,  1.0f, 0.0f, 
-        -1, 0, 0,     0.0f, 0.0f, 1.0f, 1.0f,  0.0f, 1.0f   
-    };
+    glViewport(0, 0, width, height);
+}
+////////////////////////////////////////////////////
 
-    /* 1. Create the vertex array object to hold attribs */
-    glGenVertexArrays(1, &vao1);
-    glBindVertexArray(vao1);
 
-        /* 2. Create Buffer for data */
-        glCreateBuffers(1, &vbo1);
-        glBindBuffer(GL_ARRAY_BUFFER, vbo1);
-    
-        /* 3. Store the buffer in the data */
-        glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-    
-        /* 4. Set data attributes */
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, // position attributes
-                9*sizeof(GLfloat), (void*)0);
-        glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, // color attributes
-                9*sizeof(GLfloat), (void*)(3*sizeof(GLfloat)));
-        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, // color attributes
-                9*sizeof(GLfloat), (void*)(7*sizeof(GLfloat)));
-        
-        glEnableVertexAttribArray(0);
-        glEnableVertexAttribArray(1);
-        glEnableVertexAttribArray(2);
-
-    /* 5. Stop using the attrib for now,
-     * Generally this isn't really necessary */
-    glBindVertexArray(0);
+static void initGlfw()
+{
+    glfwInit();
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    //glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 }
 
-void init_texture()
+static void createWindow()
 {
-    /* 1. Get the texture data from an image */
-    int width, height, nChannels;
-    unsigned char *data = stbi_load("../container.jpg", &width, &height, &nChannels, 0);
-    if (data == NULL) {
-        std::cout << "Error loading texture\n";
+
+    gWindow = glfwCreateWindow(WINDOW_WIDTH,
+        WINDOW_HEIGHT,
+        "LearnOpenGL",
+        NULL,
+        NULL);
+    if (gWindow == nullptr) {
+        std::cout << "Failed to create GLFW window" << std::endl;
+        glfwTerminate();
         exit(EXIT_FAILURE);
     }
 
-    /* 2. Generate an opengl texture */
-    glGenTextures(1, &texture);
-    glBindTexture(GL_TEXTURE_2D, texture);
-
-    /* Set filtering parameters (optional?) */
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-    /* 3. Generate the texture image from texture data */
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
-    glGenerateMipmap(GL_TEXTURE_2D);
-
-    /* 4. Free data if necessary */
-    stbi_image_free(data);
+    glfwMakeContextCurrent(gWindow);
 }
 
-void init(void)
+// must be called BEFORE any OpenGL function
+static void initGlad()
 {
-    ShaderInfo shaders[] = {
-        { GL_VERTEX_SHADER, "triangles.vert", 0 },
-        { GL_FRAGMENT_SHADER, "triangles.frag", 0},
-        { GL_NONE, NULL, 0 }
-    };
-
-    GLuint program = LoadShaders(shaders);
-    if (program == 0) {
-        std::cout << "Error loading shaders!\n";
+    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
+        std::cout << "Failed to init GLAD" << std::endl;
         exit(EXIT_FAILURE);
     }
-    glUseProgram(program);
-
-    create_vao_1();
-    init_texture();
 }
 
-
-//---------------------------------------------------------------------------------
-//
-// Display
-//
-void display(void)
+static void registerGlfwCallbacks()
 {
-    static const float black[] = { 0.0f, 0.0f, 0.0f, 0.0f };
-
-    glClearBufferfv(GL_COLOR, 0, black);
-
-    glBindTexture(GL_TEXTURE_2D, texture);
-    glBindVertexArray(vao1);
-    glDrawArrays(GL_TRIANGLES, 0, 3);
+    glfwSetFramebufferSizeCallback(gWindow, windowResizeCallback);
 }
 
-//---------------------------------------------------------------------------------
-//
-// Main
-//
-int main(int argc, char *argv[])
+// called once every frame during main loop
+static void draw()
 {
-    Window window;
-    if (!window.init(640, 480, "Hello world")) {
-        return -1;
-    }
+    // clear the screen
+    GLfloat r = 0.2F; // red
+    GLfloat g = 0.3F; // green
+    GLfloat b = 0.3F; // blue
+    GLfloat a = 1.0F; // alpha
+    glClearColor(r, g, b, a);
+    glClear(GL_COLOR_BUFFER_BIT);
 
-    // create buffers
-    init();
+    // draw our triangle
+    glPolygonMode(GL_FRONT_AND_BACK, gRectangle.renderMode);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, gTextures[0].id);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, gTextures[1].id);
+    glBindVertexArray(gRectangle.VAO);
+    glDrawElements(GL_TRIANGLES,
+        gRectangle.numIndices,
+        GL_UNSIGNED_INT,
+        0);
+}
 
-    while(!window.shouldClose())
+int main(void)
+{
+    initGlfw();
+    createWindow();
+    initGlad();
+    registerGlfwCallbacks();
+
+    // tell OpenGL the size and location of the rendering area
+    // args: x,y,width,height
+    glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
+
+    // Rectangle.h
+    gRectangle = createRectangle();
+
+    // Shader.h/ShaderProgram.h
+    gVertexShader = createVertexShader();
+    gFragmentShader = createFragmentShader();
+    gShaderProgram = createShaderProgram(gVertexShader,
+                                        gFragmentShader);
+    glUseProgram(gShaderProgram.id);
+
+    // Texture.h
+    gTextures[0] = createTexture("texture.bmp");
+    gTextures[1] = createTexture("texture2.bmp");
+    glUniform1i(glGetUniformLocation(gShaderProgram.id, "texSampler1"),
+                                    0);
+    glUniform1i(glGetUniformLocation(gShaderProgram.id, "texSampler2"),
+                                    1);
+
+    while (!glfwWindowShouldClose(gWindow))
     {
-        display();
-        window.update();
+        if (glfwGetKey(gWindow, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
+            glfwSetWindowShouldClose(gWindow, true);
+        }
+        // press space to switch between wired and filled drawing
+        // of the rectangle
+        else if (glfwGetKey(gWindow, GLFW_KEY_SPACE) == GLFW_PRESS) {
+            static int rectRenderModes[] = {
+                GL_FILL,
+                GL_LINE
+            };
+            static size_t renderIndex = 0;
+            renderIndex = !renderIndex;
+            gRectangle.renderMode = rectRenderModes[renderIndex];
+        }
+
+        draw();
+
+        glfwSwapBuffers(gWindow);
+        glfwPollEvents();
     }
 
+    glDeleteShader(gVertexShader.id);
+    glDeleteShader(gFragmentShader.id);
+    glfwTerminate();
     return 0;
 }
 

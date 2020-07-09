@@ -1,0 +1,16 @@
+*.exe
+*x64
+*.filters
+*.user
+*.obj
+*.idb
+*.pdb
+*.log
+*.ipch
+*.opendb
+*.db
+*.suo
+*.vs
+*.ilk
+*.dll
+

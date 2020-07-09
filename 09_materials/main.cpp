@@ -1,347 +1,358 @@
-//
-// Test opengl application
-//
+#include <iostream>
+#include <cstdlib>
+#include <cmath>
+#include <vector>
+#include <map>
 
-#include "Window.h"
-#include "LoadShaders.h"
-#include "Camera.h"
-#include "Cube.h"
-
-// matrix library
+#include <glad/glad.h>
+#include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-// STB image loader
-#define STB_IMAGE_IMPLEMENTATION
-#include "../stb_image.h"
+#include "Texture.h"
+#include "Cube.h"
+#include "Shader.h"
+#include "ShaderProgram.h"
+#include "Transform.h"
+#include "Camera.h"
+#include "LightSource.h"
 
-#include <iostream>
 
-// screen size
-const float SCREEN_WIDTH = 640.0f, SCREEN_HEIGHT = 480.0f;
+// Globals
+const size_t WINDOW_WIDTH = 800;
+const size_t WINDOW_HEIGHT = 600;
+GLFWwindow* gWindow = nullptr;
 
-// Texture objects
-GLuint texture;
-GLuint texture2;
+LightSource gLightSource;
+glm::vec3 gLightPosition = glm::vec3(1.2F, 2.0F,1.0F);
+Cube gCube;
+glm::vec3 gCubePosition = glm::vec3(0.0F, 0.0F, 0.0F);
+glm::mat4 gCubeModelMat;
 
-// cube to draw
-GLfloat cube_angle = 0.0f;
-Cube cube;
+Shader gVertexShader;
+Shader gFragmentShader;
+ShaderProgram gShaderProgram;
+std::map<std::string, int> gUniformLocations;
 
-// shader program
-GLuint program;
+// shaders just used by the object representing the light
+Shader gLightFragmentShader;
+ShaderProgram gLightShaderProgram; 
 
-// matrix locations
-GLuint modelMatLoc;
-GLuint viewMatLoc;
-GLuint projMatLoc;
+glm::mat4 gCubeTransMat;
+glm::mat4 gLightTransMat;
+Camera gCamera;
+////////////////////////////////////////////////////
 
-GLuint lampModelMatLoc;
-GLuint lampViewMatLoc;
-GLuint lampProjMatLoc;
-
-// our transformation matrices
-glm::mat4 viewMat;
-glm::mat4 projMat;
-
-// camera stuff
-Camera camera;
-
-// Light stuff
-GLuint vao_light;
-GLuint lightVecLoc;
-GLuint viewPosLoc;
-
-Cube lamp;
-GLuint lampShaderProgram;
-glm::vec3 lamp_pos = glm::vec3(1.0f, 0.0f, 0.0f);
-GLuint lampLightLoc;
-GLuint lampColorLoc;
-GLuint lampDiffuseLoc;
-
-//-----------------------------------------------------------------------------------
-//
-// Init
-//
-void init_light()
+// GLFW callback functions
+void windowResizeCallback(GLFWwindow* window, int width, int height)
 {
-    glUseProgram(program);
-
-    // create a light vertex array obj
-    glGenVertexArrays(1, &vao_light);
-    glBindVertexArray(vao_light);
-
-    // stop using our light VAO
-    glBindVertexArray(0);
-
-    // set the light uniform position
-    lightVecLoc = glGetUniformLocation(program, "uLightPos");
-    glm::vec3 lightPos = lamp.getPos();
-    glUniform4fv(lightVecLoc, 1, glm::value_ptr(lightPos));
-
-    // set the light properties
-    lampColorLoc = glGetUniformLocation(program, "light.ambient");
-    lampDiffuseLoc = glGetUniformLocation(program, "light.diffuse");
-    GLuint lampSpecLoc = glGetUniformLocation(program, "light.specular");
-
-    glUniform3f(lampColorLoc, 0.2f, 0.2f, 0.2f);
-    glUniform3f(lampDiffuseLoc, 0.5f, 0.5f, 0.5f);
-    glUniform3f(lampSpecLoc, 1.0f, 1.0f, 1.0f);
-
+    glViewport(0, 0, width, height);
 }
 
-void init_texture()
+// rotate the camera FPS style
+void mouseMoveCallback(GLFWwindow* window, double x, double y)
 {
-    /* 1. Get the texture data from an image */
-    int width, height, nChannels;
-    unsigned char *data = stbi_load("../container.jpg", &width, &height, &nChannels, 0);
-    if (data == NULL) {
-        std::cout << "Error loading texture\n";
+    static double lastX = WINDOW_WIDTH / 2.0F;
+    static double lastY = WINDOW_HEIGHT / 2.0F;
+
+    // prevent jump when mouse first enters window
+    static bool firstCall = true;
+    if (firstCall) {
+        lastX = x;
+        lastY = y;
+        firstCall = false;
+    }
+
+    double offsetX = x - lastX;
+    double offsetY = lastY - y; // negate this one
+    lastX = x;
+    lastY = y;
+
+    static const double sensitivity = 0.1F;
+    offsetX *= sensitivity;
+    offsetY *= sensitivity;
+
+    gCamera.yaw += offsetX;
+    gCamera.pitch += offsetY;
+
+    // prevent gimble lock
+    if (gCamera.pitch > 89.0F) {
+        gCamera.pitch = 89.0F;
+    }
+    if (gCamera.pitch < -89.0F) {
+        gCamera.pitch = -89.0F;
+    }
+
+    // update camera pointing direction
+    float dirX = cos(glm::radians(gCamera.yaw)) * cos(glm::radians(gCamera.pitch));
+    float dirY = sin(glm::radians(gCamera.pitch));
+    float dirZ = sin(glm::radians(gCamera.yaw)) * cos(glm::radians(gCamera.pitch));
+    gCamera.front = glm::normalize(glm::vec3(dirX, dirY, dirZ));
+}
+
+// zoom in or out by changing the FOV
+// difference is stored in y
+void mouseScrollCallback(GLFWwindow* window, double x, double y)
+{
+    gCamera.FOV -= y;
+    if (gCamera.FOV < 1.0F) {
+        gCamera.FOV = 1.0F;
+    }
+    else if (gCamera.FOV > 45.0F) {
+        gCamera.FOV = 45.0F;
+    }
+}
+
+////////////////////////////////////////////////////
+
+
+static void initGlfw()
+{
+    glfwInit();
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    //glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+}
+
+static void createWindow()
+{
+
+    gWindow = glfwCreateWindow(WINDOW_WIDTH,
+        WINDOW_HEIGHT,
+        "LearnOpenGL",
+        NULL,
+        NULL);
+    if (gWindow == nullptr) {
+        std::cout << "Failed to create GLFW window" << std::endl;
+        glfwTerminate();
         exit(EXIT_FAILURE);
     }
 
-    /* 2. Generate an opengl texture */
-    glGenTextures(1, &texture);
-    glBindTexture(GL_TEXTURE_2D, texture);
-
-    /* Set filtering parameters (optional?) */
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-    /* 3. Generate the texture image from texture data */
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
-    glGenerateMipmap(GL_TEXTURE_2D);
-
-    /* 4. Free data if necessary */
-    stbi_image_free(data);
-
-    /* Bind the texture to a sampler 
-     * In this case GL_TEXTURE0 */
-    glUniform1i(glGetUniformLocation(program, "myTexture"), 0);
+    glfwMakeContextCurrent(gWindow);
+    glfwSetInputMode(gWindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 }
 
-void init_texture2()
+// must be called BEFORE any OpenGL function
+static void initGlad()
 {
-    /* 1. Get the texture data from an image */
-    int width, height, nChannels;
-    unsigned char *data = stbi_load("../awesomeface.png", &width, &height, &nChannels, 0);
-    if (data == NULL) {
-        std::cout << "Error loading texture\n";
+    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
+        std::cout << "Failed to init GLAD" << std::endl;
         exit(EXIT_FAILURE);
     }
-
-    /* 2. Generate an opengl texture */
-    glGenTextures(1, &texture2);
-    glBindTexture(GL_TEXTURE_2D, texture2);
-
-    /* Set filtering parameters (optional?) */
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-    /* 3. Generate the texture image from texture data 
-     * This image is a png so it has alpha values as well */
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
-    glGenerateMipmap(GL_TEXTURE_2D);
-
-    /* 4. Free data if necessary */
-    stbi_image_free(data);
-
-    /* Bind the texture to a sampler 
-     * In this case GL_TEXTURE1 */
-    GLuint tex2loc = glGetUniformLocation(program, "myTexture2");
-    glUniform1i(tex2loc, 1);
 }
 
-void init_matuniform()
+static void registerGlfwCallbacks()
 {
-// ------------------------------------------------------------------------------------
-//
-// Projection Matrix
-//
-    /* Create a persepective matrix */
-    projMat = glm::perspective(glm::radians(45.0f), SCREEN_WIDTH/SCREEN_HEIGHT, 0.1f, 100.0f);
-
-    /* Send the matrices to the shader
-     * The GL_FALSE arg is important here - if true, OpenGL will transpose/swap rows and cols
-     * We use column-major ordering so no need to switch (as opposed to row major like in mathematics)
-     */
-    modelMatLoc = glGetUniformLocation(program, "uModelMat");
-    viewMatLoc = glGetUniformLocation(program, "uViewMat");
-    projMatLoc = glGetUniformLocation(program, "uProjMat");
-
-    //glUniformMatrix4fv(viewMatLoc, 1, GL_FALSE, glm::value_ptr(viewMat));
-    glUniformMatrix4fv(projMatLoc, 1, GL_FALSE, glm::value_ptr(projMat));
-
-    // send the model matrix location to the cube
-    cube.setModelMatLoc(modelMatLoc);
-
-// -----------------------------------------------------------------------------------
-//
-// Lamp Shader Uniforms
-//
-    glUseProgram(lampShaderProgram);
-    lampModelMatLoc = glGetUniformLocation(lampShaderProgram, "uModelMat");
-    lampViewMatLoc = glGetUniformLocation(lampShaderProgram, "uViewMat");
-    lampProjMatLoc = glGetUniformLocation(lampShaderProgram, "uProjMat");
-
-    glUniformMatrix4fv(lampProjMatLoc, 1, GL_FALSE, glm::value_ptr(projMat));
-
-    lamp.setModelMatLoc(lampModelMatLoc);
-
-    glUseProgram(program);
-    lampLightLoc = glGetUniformLocation(program, "uLightPos");
-    glm::vec3 lampPos = lamp.getPos();
-    glUniform3f(lampLightLoc, lampPos.x, lampPos.y, lampPos.z);
-
+    glfwSetFramebufferSizeCallback(gWindow, windowResizeCallback);
+    glfwSetCursorPosCallback(gWindow, mouseMoveCallback);
+    glfwSetScrollCallback(gWindow, mouseScrollCallback);
 }
 
-void init(void)
+static void moveCamera()
 {
-    // regular object shader
-    ShaderInfo shaders[] = {
-        { GL_VERTEX_SHADER, "triangles.vert", 0 },
-        { GL_FRAGMENT_SHADER, "triangles.frag", 0},
-        { GL_NONE, NULL, 0 }
-    };
-
-    program = LoadShaders(shaders);
-    if (program == 0) {
-        std::cout << "Error loading shaders!\n";
-        exit(EXIT_FAILURE);
+    // move the camera via wasd using time-based 
+    // speed instead of relying on frame rate
+    static float deltaTime = 0.0F;
+    static float lastFrameTime = 0.0F;
+    float currentFrame = glfwGetTime();
+    deltaTime = currentFrame - lastFrameTime;
+    lastFrameTime = currentFrame;
+    float cameraSpeed = 5.0F * deltaTime;
+    if (glfwGetKey(gWindow, GLFW_KEY_W) == GLFW_PRESS) {
+        gCamera.position += cameraSpeed * gCamera.front;
     }
-    glUseProgram(program);
-
-    // lamp shader (so color doesn't affect the lamp)
-    ShaderInfo lampShaders[] = {
-        { GL_VERTEX_SHADER, "lampShader.vert", 0 },
-        { GL_FRAGMENT_SHADER, "lampShader.frag", 0},
-        { GL_NONE, NULL, 0 }
-    };
-    lampShaderProgram = LoadShaders(lampShaders);
-    if (lampShaderProgram == 0) {
-        std::cout << "Error loading lamp shader!\n";
-        exit(EXIT_FAILURE);
+    if (glfwGetKey(gWindow, GLFW_KEY_S) == GLFW_PRESS) {
+        gCamera.position -= cameraSpeed * gCamera.front;
     }
+    if (glfwGetKey(gWindow, GLFW_KEY_A) == GLFW_PRESS) {
+        // calculates the camera's right vector, then use
+        // it to subtract from position
+        gCamera.position -= glm::normalize(
+            glm::cross(gCamera.front, gCamera.up)) *
+            cameraSpeed;
+    }
+    if (glfwGetKey(gWindow, GLFW_KEY_D) == GLFW_PRESS) {
+        // calculates the camera's right vector, then use
+        // it to add to position
+        gCamera.position += glm::normalize(
+            glm::cross(gCamera.front, gCamera.up)) *
+            cameraSpeed;
+    }
+}
 
-    // tell the cube to use this shader
-    cube.setShaderProg(program);
-    cube.init();
-    cube.move(glm::vec3(0.0f, -5.0f, -1.0f));
-    cube.scale(glm::vec3(1.5f, 0.1f, 1.5f));
+static void updateUniforms()
+{
+    // main shader
+    glUseProgram(gShaderProgram.id);
+    glUniform3f(gUniformLocations["uLightPosition"],
+        gLightPosition.x,
+        gLightPosition.y,
+        gLightPosition.z);
+    glUniformMatrix4fv(gUniformLocations["uTransform"],
+        1, // number of matrices
+        GL_FALSE, // should the matrices be transposed?
+        glm::value_ptr(gCubeTransMat)); // pointer to data
+    glUniform3f(gUniformLocations["uCameraPosition"],
+        gCamera.position.x,
+        gCamera.position.y,
+        gCamera.position.z);
+    glUniform3f(gUniformLocations["uLightPosition"],
+        gLightPosition.x,
+        gLightPosition.y,
+        gLightPosition.z);
+    glUniformMatrix4fv(gUniformLocations["uModel"],
+        1,
+        GL_FALSE,
+        glm::value_ptr(gCubeModelMat));
 
-    // set cube material properties
-    GLuint cubeAmbLoc = glGetUniformLocation(program, "material.ambient");
-    GLuint cubeDiffLoc = glGetUniformLocation(program, "material.diffuse");
-    GLuint cubeSpecLoc = glGetUniformLocation(program, "material.specular");
-    GLuint cubeShiniLoc = glGetUniformLocation(program, "material.shininess");
+    // main shader: cube material properties
+    glUniform3f(gUniformLocations["uMaterial.ambient"], 1.0F, 0.5F, 0.31F);
+    glUniform3f(gUniformLocations["uMaterial.diffuse"], 1.0F, 0.5F, 0.31F);
+    glUniform3f(gUniformLocations["uMaterial.specular"], 0.5f, 0.5F, 0.5F);
+    glUniform1f(gUniformLocations["uMaterial.shininess"], 32.0F);
 
-    glUniform3f(cubeAmbLoc, 1.0f, 0.5f, 0.31f);
-    glUniform3f(cubeDiffLoc, 1.0f, 0.5f, 0.31f);
-    glUniform3f(cubeSpecLoc, 0.5f, 0.5f, 0.5f);
-    glUniform1f(cubeShiniLoc, 32.0f);
+    // main shader: light properties
+    static glm::vec3 lightColor;
+    lightColor.r = sin(glfwGetTime() * 2.0F);
+    lightColor.g = sin(glfwGetTime() * 0.7F);
+    lightColor.b = sin(glfwGetTime() * 1.3F);
+    glm::vec3 lightDiffuse = lightColor * glm::vec3(0.5F);
+    glm::vec3 lightAmbient = lightDiffuse * glm::vec3(0.2F);
+    glUniform3fv(gUniformLocations["uLight.ambient"], 1, glm::value_ptr(lightAmbient));
+    glUniform3fv(gUniformLocations["uLight.diffuse"], 1, glm::value_ptr(lightDiffuse)); // darkened
+    glUniform3f(gUniformLocations["uLight.specular"], 1.0f, 1.0F, 1.0F);
 
-    lamp.setShaderProg(lampShaderProgram);
-    lamp.init();
-    lamp.move(glm::vec3(0.5f, 0.0f, 0.0f));
+    // light source shader
+    glUseProgram(gLightShaderProgram.id);
+    static int uTransformLocation = glGetUniformLocation(gLightShaderProgram.id, "uTransform");
+    // the light source uses the same vertices/buffer object
+    // as the cube above
+    glUniformMatrix4fv(uTransformLocation,
+        1, // number of matrices
+        GL_FALSE, // should the matrices be transposed?
+        glm::value_ptr(gLightTransMat)); // pointer to data
+    static int uLightColorLocation = glGetUniformLocation(gLightShaderProgram.id, "uLightColor");
+    glUniform3fv(uLightColorLocation, 1, glm::value_ptr(lightDiffuse));
+}
 
-    init_texture();
-    init_texture2();
-    init_matuniform();
-    init_light();
+// called once every frame during main loop
+static void draw()
+{
+    // clear the screen
+    GLfloat r = 0.2F; // red
+    GLfloat g = 0.3F; // green
+    GLfloat b = 0.3F; // blue
+    GLfloat a = 1.0F; // alpha
+    glClearColor(r, g, b, a);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    // we're doing 3d now so we want opengl to check who's in front of who
+    // draw the cube
+    glUseProgram(gShaderProgram.id);
+    glPolygonMode(GL_FRONT_AND_BACK, gCube.renderMode);
+    glBindVertexArray(gCube.VAO);
+    glDrawArrays(GL_TRIANGLES, 0, gCube.numVertices);
+
+    // draw the light source
+    glUseProgram(gLightShaderProgram.id);
+    glBindVertexArray(gLightSource.VAO);
+    glDrawArrays(GL_TRIANGLES, 0, gCube.numVertices);
+}
+
+int main(void)
+{
+    initGlfw();
+    createWindow();
+    initGlad();
+    registerGlfwCallbacks();
+
+    // tell OpenGL the size and location of the rendering area
+    // args: x,y,width,height
+    glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
+
+    // prevent triangles behind other triangles from being drawn
     glEnable(GL_DEPTH_TEST);
-}
 
-void update_matrices()
-{
-    glUseProgram(program);
-    glUniformMatrix4fv(viewMatLoc, 1, GL_FALSE, camera.getLookAtPtr());
-    glUniformMatrix4fv(projMatLoc, 1, GL_FALSE, glm::value_ptr(projMat));
+    // Cube.h
+    gCube = createCube();
+    gCubeModelMat = glm::mat4(1.0F);
+    gCubeModelMat = glm::translate(gCubeModelMat, gCubePosition);
 
-    glUniform3fv(viewPosLoc, 1, camera.getPosPtr());
+    // Camera.h
+    gCamera = createCamera();
 
-    glUseProgram(lampShaderProgram);
-    glUniformMatrix4fv(lampViewMatLoc, 1, GL_FALSE, camera.getLookAtPtr());
-    glUniformMatrix4fv(lampProjMatLoc, 1, GL_FALSE, glm::value_ptr(projMat));
-}
+    // Shader.h/ShaderProgram.h
+    gVertexShader = createVertexShader("vertexShader.glsl");
+    gFragmentShader = createFragmentShader("fragmentShader.glsl");
+    gShaderProgram = createShaderProgram(gVertexShader,
+        gFragmentShader);
+    glUseProgram(gShaderProgram.id);
 
+    gUniformLocations["uLightPosition"] = glGetUniformLocation(gShaderProgram.id, "uLightPosition");
+    gUniformLocations["uCameraPosition"] = glGetUniformLocation(gShaderProgram.id, "uCameraPosition");
+    gUniformLocations["uTransform"] = glGetUniformLocation(gShaderProgram.id, "uTransform");
+    gUniformLocations["uModel"] = glGetUniformLocation(gShaderProgram.id, "uModel");
+    gUniformLocations["uMaterial.ambient"] = glGetUniformLocation(gShaderProgram.id, "uMaterial.ambient");
+    gUniformLocations["uMaterial.diffuse"] = glGetUniformLocation(gShaderProgram.id, "uMaterial.diffuse");
+    gUniformLocations["uMaterial.specular"] = glGetUniformLocation(gShaderProgram.id, "uMaterial.specular");
+    gUniformLocations["uMaterial.shininess"] = glGetUniformLocation(gShaderProgram.id, "uMaterial.shininess");
+    gUniformLocations["uLight.ambient"] = glGetUniformLocation(gShaderProgram.id, "uLight.ambient");
+    gUniformLocations["uLight.diffuse"] = glGetUniformLocation(gShaderProgram.id, "uLight.diffuse");
+    gUniformLocations["uLight.specular"] = glGetUniformLocation(gShaderProgram.id, "uLight.specular");
 
-//---------------------------------------------------------------------------------
-//
-// Display
-//
-void display(void)
-{
-    static const float black[] = { 0.0f, 0.0f, 0.0f, 0.0f };
+    // make a shader just for the light source, which uses a different
+    // fragment shader and the same vertex shader
+    gLightFragmentShader = createFragmentShader("lightFragmentShader.glsl");
+    gLightShaderProgram = createShaderProgram(gVertexShader,
+        gLightFragmentShader);
 
-    /* Clear screen and z buffer */
-    glClearBufferfv(GL_COLOR, 0, black);
-    glClear(GL_DEPTH_BUFFER_BIT); // will have a blank screen without this
+    // LightSource.h
+    gLightSource = createLightSource(gCube);
 
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, texture);
+    // Transform.h
+    gCubeTransMat = createTransformationMatrix();
+    gLightTransMat = createTransformationMatrix();
 
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, texture2);
-
-    cube.draw();
-
-    lamp.draw();
-}
-
-
-//---------------------------------------------------------------------------------
-//
-// Main
-//
-int main(int argc, char *argv[])
-{
-    Window window;
-    if (!window.init(SCREEN_WIDTH, SCREEN_HEIGHT, "Hello world")) {
-        return -1;
-    }
-
-    camera.setWindow(&window);
-
-    // create buffers
-    init();
-
-
-    while(!window.shouldClose())
+    while (!glfwWindowShouldClose(gWindow))
     {
+        if (glfwGetKey(gWindow, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
+            glfwSetWindowShouldClose(gWindow, true);
+        }
+        // press space to switch between wired and filled drawing
+        // of the rectangle
+        else if (glfwGetKey(gWindow, GLFW_KEY_SPACE) == GLFW_PRESS) {
+            static int rectRenderModes[] = {
+                GL_FILL,
+                GL_LINE
+            };
+            static size_t renderIndex = 0;
+            renderIndex = !renderIndex;
+            gCube.renderMode = rectRenderModes[renderIndex];
+        }
 
-        // change light color
-        glm::vec3 lightColor;
-        lightColor.x = sin(glfwGetTime() * 2.0f);
-        lightColor.y = sin(glfwGetTime() * 0.7f);
-        lightColor.z = sin(glfwGetTime() * 1.3f);
+        moveCamera();
 
-        glm::vec3 ambientColor;
-        ambientColor.x = cos(glfwGetTime() * 1.0f);
-        ambientColor.y = cos(glfwGetTime() * 0.3f);
-        ambientColor.z = cos(glfwGetTime() * 2.3f);
-        
+        // move the light around
+        static float lightMoveRadius = 5.0F;
+        gLightPosition.x = cos(glfwGetTime()) * lightMoveRadius;
 
-        glm::vec3 diffuseColor = lightColor * glm::vec3(0.5f);
-        ambientColor = ambientColor * glm::vec3(0.8f);
+        // Transform.h
+        updateTransformationMatrix(gCubeTransMat, gCubePosition, gCamera);
+        updateTransformationMatrix(gLightTransMat, gLightPosition, gCamera);
 
-        glUseProgram(program);
-        glUniform3fv(lampDiffuseLoc, 1, glm::value_ptr(diffuseColor));
-        glUniform3fv(lampColorLoc, 1, glm::value_ptr(ambientColor));
+        // send updated matrix/position data to the shaders
+        updateUniforms();
 
+        draw();
 
-        camera.update();
-        update_matrices();
-        display();
-        window.update();
+        glfwSwapBuffers(gWindow);
+        glfwPollEvents();
     }
 
+    glDeleteShader(gVertexShader.id);
+    glDeleteShader(gFragmentShader.id);
+    glfwTerminate();
     return 0;
 }
 
