@@ -21,8 +21,8 @@ public:
     ShaderProgram() {}
     ~ShaderProgram() 
     {
-        glDeleteShader(vertexShader.id);
-        glDeleteShader(fragmentShader.id);
+        //glDeleteShader(vertexShader.id);
+        //glDeleteShader(fragmentShader.id);
     }
 
     void Create(const std::string& vertexFileName, const std::string& fragmentFileName)
@@ -87,16 +87,6 @@ private:
         }
     }
 };
-
-ShaderProgram createShaderProgram(const Shader& vertexShader,
-                                  const Shader& fragmentShader)
-{
-    ShaderProgram program;
-
-    
-
-    return program;
-}
 
 #endif // !SHADER_PROGRAM_H_INCLUDED
 

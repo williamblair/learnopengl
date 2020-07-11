@@ -13,4 +13,5 @@
 *.vs
 *.ilk
 *.dll
+*main
 
