@@ -329,6 +329,10 @@ int main(void)
         // send updated matrix/position data to the shaders
         updateUniforms();
 
+        // update time for the 'exploding' geometry shader
+        gShaderProgram.Use();
+        gShaderProgram.SetVec1f("uTime", glfwGetTime());
+
         draw();
 
         glfwSwapBuffers(gWindow);
