@@ -36,13 +36,9 @@ Model gModel;
 glm::mat4 gModelModelMat;
 glm::vec3 gModelPosition = glm::vec3(0.0f, 0.0f, 0.0f);
 
-//Shader gVertexShader;
-//Shader gFragmentShader;
 ShaderProgram gShaderProgram;
-//std::map<std::string, int> gUniformLocations;
 
 // shaders just used by the object representing the light
-//Shader gLightFragmentShader;
 ShaderProgram gLightShaderProgram; 
 
 glm::mat4 gModelTransMat;
@@ -191,64 +187,25 @@ static void moveCamera()
 static void updateUniforms()
 {
     // main shader
-    //glUseProgram(gShaderProgram.id);
     gShaderProgram.Use();
-    //glUniformMatrix4fv(gUniformLocations["uTransform"],
-    //    1, // number of matrices
-    //    GL_FALSE, // should the matrices be transposed?
-    //    glm::value_ptr(gModelTransMat)); // pointer to data
     gShaderProgram.SetMat4fv("uTransform", gModelTransMat);
-    //glUniform3f(gUniformLocations["uCameraPosition"],
-    //    gCamera.position.x,
-    //    gCamera.position.y,
-    //    gCamera.position.z);
     gShaderProgram.SetVec3fv("uCameraPosition", gCamera.position);
     // for positional light
-    //glUniform3f(gUniformLocations["uPosLight.position"],
-    //    gLightPosition.x,
-    //    gLightPosition.y,
-    //    gLightPosition.z);
     gShaderProgram.SetVec3fv("uPosLight.position", gLightPosition);
     // for directional light
-    //glUniform3f(gUniformLocations["uDirLight.direction"],
-    //    gLightDirection.x,
-    //    gLightDirection.y,
-    //    gLightDirection.z);
     gShaderProgram.SetVec3fv("uDirLight.direction", gLightDirection);
     // for spotlight
-    //glUniform3f(gUniformLocations["uSpotLight.position"],
-    //    gCamera.position.x,
-    //    gCamera.position.y,
-    //    gCamera.position.z);
     gShaderProgram.SetVec3fv("uSpotLight.position", gCamera.position);
-    //glUniform3f(gUniformLocations["uSpotLight.direction"],
-    //    gCamera.front.x,
-    //    gCamera.front.y,
-    //    gCamera.front.z);
     gShaderProgram.SetVec3fv("uSpotLight.direction", gCamera.front);
-    //glUniformMatrix4fv(gUniformLocations["uModel"],
-    //    1,
-    //    GL_FALSE,
-    //    glm::value_ptr(gModelModelMat));
     gShaderProgram.SetMat4fv("uModel", gModelModelMat);
 
     // main shader: model material properties
-    //glUniform1f(gUniformLocations["uMaterial.shininess"], 32.0F);
     gShaderProgram.SetVec1f("uMaterial.shininess", 32.0F);
 
     // main shader: light properties
     glm::vec3 lightAmbient = glm::vec3(0.2F, 0.2F, 0.2F);
     glm::vec3 lightDiffuse = glm::vec3(0.99F, 0.99F, 0.99F);
     glm::vec3 lightSpecular = glm::vec3(1.0F, 1.0F, 1.0F);
-    //glUniform3fv(gUniformLocations["uDirLight.ambient"], 1, glm::value_ptr(lightAmbient));
-    //glUniform3fv(gUniformLocations["uDirLight.diffuse"], 1, glm::value_ptr(lightDiffuse)); // darkened
-    //glUniform3f(gUniformLocations["uDirLight.specular"], 1.0F, 1.0F, 1.0F);
-    //glUniform3fv(gUniformLocations["uPosLight.ambient"], 1, glm::value_ptr(lightAmbient));
-    //glUniform3fv(gUniformLocations["uPosLight.diffuse"], 1, glm::value_ptr(lightDiffuse)); // darkened
-    //glUniform3f(gUniformLocations["uPosLight.specular"], 1.0F, 1.0F, 1.0F);
-    //glUniform3fv(gUniformLocations["uSpotLight.ambient"], 1, glm::value_ptr(lightAmbient));
-    //glUniform3fv(gUniformLocations["uSpotLight.diffuse"], 1, glm::value_ptr(lightDiffuse)); // darkened
-    //glUniform3f(gUniformLocations["uSpotLight.specular"], glm::value_ptr(lightSpecular));
     gShaderProgram.SetVec3fv("uDirLight.ambient", lightAmbient);
     gShaderProgram.SetVec3fv("uDirLight.diffuse", lightDiffuse); // darkened
     gShaderProgram.SetVec3fv("uDirLight.specular", lightSpecular);
@@ -260,32 +217,19 @@ static void updateUniforms()
     gShaderProgram.SetVec3fv("uSpotLight.specular", lightSpecular);
     
     // for positional light
-    //glUniform1f(gUniformLocations["uPosLight.constant"], 1.0F);
-    //glUniform1f(gUniformLocations["uPosLight.linear"], 0.22F);
-    //glUniform1f(gUniformLocations["uPosLight.quadratic"], 0.20F);
     gShaderProgram.SetVec1f("uPosLight.constant", 1.0F);
     gShaderProgram.SetVec1f("uPosLight.linear", 0.22F);
     gShaderProgram.SetVec1f("uPosLight.quadratic", 0.20F);
 
     // for spotlight
-    //glUniform1f(gUniformLocations["uSpotLight.cutoff"], glm::cos(glm::radians(12.5F)));
-    //glUniform1f(gUniformLocations["uSpotLight.outerCutoff"], glm::cos(glm::radians(17.5F)));
     gShaderProgram.SetVec1f("uSpotLight.cutoff",glm::cos(glm::radians(12.5F)));
     gShaderProgram.SetVec1f("uSpotLight.outerCutoff",glm::cos(glm::radians(17.5F)));
 
     // light source shader
-    //glUseProgram(gLightShaderProgram.id);
     gLightShaderProgram.Use();
-    //static int uTransformLocation = glGetUniformLocation(gLightShaderProgram.id, "uTransform");
     // the light source uses the same vertices/buffer object
     // as the cube above
-    //glUniformMatrix4fv(uTransformLocation,
-    //    1, // number of matrices
-    //    GL_FALSE, // should the matrices be transposed?
-    //    glm::value_ptr(gLightTransMat)); // pointer to data
     gLightShaderProgram.SetMat4fv("uTransform", gLightTransMat);
-    //static int uLightColorLocation = glGetUniformLocation(gLightShaderProgram.id, "uLightColor");
-    //glUniform3fv(uLightColorLocation, 1, glm::value_ptr(lightDiffuse));
     gLightShaderProgram.SetVec3fv("uLightColor", lightDiffuse);
 }
 
@@ -304,22 +248,13 @@ static void draw()
     //glUseProgram(gShaderProgram.id);
     gShaderProgram.Use();
     updateTransformationMatrix(gModelTransMat, gModelPosition, gCamera);
-    //glUniformMatrix4fv(gUniformLocations["uTransform"],
-    //    1, // number of matrices
-    //    GL_FALSE, // should the matrices be transposed?
-    //    glm::value_ptr(gModelTransMat)); // pointer to data
     gShaderProgram.SetMat4fv("uTransform", gModelTransMat);
     gModelModelMat = glm::mat4(1.0F);
     gModelModelMat = glm::translate(gModelModelMat, gModelPosition);
-    //glUniformMatrix4fv(gUniformLocations["uModel"],
-    //    1,
-    //    GL_FALSE,
-    //    glm::value_ptr(gModelModelMat));
     gShaderProgram.SetMat4fv("uModel", gModelModelMat);
     gModel.Draw(gShaderProgram);
 
     // draw the light source
-    //glUseProgram(gLightShaderProgram.id);
     gLightShaderProgram.Use();
     glBindVertexArray(gLightSource.VAO);
     glDrawArrays(GL_TRIANGLES, 0, gCube.numVertices);
@@ -347,52 +282,15 @@ int main(void)
     gCamera = createCamera();
 
     // Shader.h/ShaderProgram.h
-    //gVertexShader = createVertexShader("vertexShader.glsl");
-    //gFragmentShader = createFragmentShader("fragmentShader.glsl");
-    //gShaderProgram = createShaderProgram(gVertexShader,
-    //    gFragmentShader);
-    gShaderProgram.Create("vertexShader.glsl", "fragmentShader.glsl");
+    //gShaderProgram.Create("vertexShader.glsl", "fragmentShader.glsl");
+    gShaderProgram.Create("vertexShader.glsl", "fragmentShader.glsl", "geometryShader.glsl");
     gShaderProgram.Use();
-    //glUseProgram(gShaderProgram.id);
 
     // Model.h
     gModel.Load("backpack/backpack.obj");
 
-#if 0
-    gUniformLocations["uCameraPosition"] = glGetUniformLocation(gShaderProgram.id, "uCameraPosition");
-    gUniformLocations["uTransform"] = glGetUniformLocation(gShaderProgram.id, "uTransform");
-    gUniformLocations["uModel"] = glGetUniformLocation(gShaderProgram.id, "uModel");
-    gUniformLocations["uMaterial.shininess"] = glGetUniformLocation(gShaderProgram.id, "uMaterial.shininess");
-    // for directional light and spotlight
-    gUniformLocations["uDirLight.direction"] = glGetUniformLocation(gShaderProgram.id, "uDirLight.direction");
-    gUniformLocations["uSpotLight.direction"] = glGetUniformLocation(gShaderProgram.id, "uSpotLight.direction");
-    // for positional light and spotlight
-    gUniformLocations["uPosLight.position"] = glGetUniformLocation(gShaderProgram.id, "uPosLight.position");
-    gUniformLocations["uSpotLight.position"] = glGetUniformLocation(gShaderProgram.id, "uSpotLight.position");
-    // each light ambient, diffuse, specular
-    gUniformLocations["uPosLight.ambient"] = glGetUniformLocation(gShaderProgram.id, "uPosLight.ambient");
-    gUniformLocations["uPosLight.diffuse"] = glGetUniformLocation(gShaderProgram.id, "uPosLight.diffuse");
-    gUniformLocations["uPosLight.specular"] = glGetUniformLocation(gShaderProgram.id, "uPosLight.specular");
-    gUniformLocations["uDirLight.ambient"] = glGetUniformLocation(gShaderProgram.id, "uDirLight.ambient");
-    gUniformLocations["uDirLight.diffuse"] = glGetUniformLocation(gShaderProgram.id, "uDirLight.diffuse");
-    gUniformLocations["uDirLight.specular"] = glGetUniformLocation(gShaderProgram.id, "uDirLight.specular");
-    gUniformLocations["uSpotLight.ambient"] = glGetUniformLocation(gShaderProgram.id, "uSpotLight.ambient");
-    gUniformLocations["uSpotLight.diffuse"] = glGetUniformLocation(gShaderProgram.id, "uSpotLight.diffuse");
-    gUniformLocations["uSpotLight.specular"] = glGetUniformLocation(gShaderProgram.id, "uSpotLight.specular");
-    // for positional light
-    gUniformLocations["uPosLight.constant"] = glGetUniformLocation(gShaderProgram.id, "uPosLight.constant");
-    gUniformLocations["uPosLight.linear"] = glGetUniformLocation(gShaderProgram.id, "uPosLight.linear");
-    gUniformLocations["uPosLight.quadratic"] = glGetUniformLocation(gShaderProgram.id, "uPosLight.quadratic");
-    // for spotlight
-    gUniformLocations["uSpotLight.cutoff"] = glGetUniformLocation(gShaderProgram.id, "uSpotLight.cutoff");
-    gUniformLocations["uSpotLight.outerCutoff"] = glGetUniformLocation(gShaderProgram.id, "uSpotLight.outerCutoff");
-#endif
-
     // make a shader just for the light source, which uses a different
     // fragment shader and the same vertex shader
-    //gLightFragmentShader = createFragmentShader("lightFragmentShader.glsl");
-    //gLightShaderProgram = createShaderProgram(gVertexShader,
-    //    gLightFragmentShader);
     gLightShaderProgram.Create("vertexShader.glsl", "lightFragmentShader.glsl");
 
     // LightSource.h
@@ -437,8 +335,6 @@ int main(void)
         glfwPollEvents();
     }
 
-    //glDeleteShader(gVertexShader.id);
-    //glDeleteShader(gFragmentShader.id);
     glfwTerminate();
     return 0;
 }

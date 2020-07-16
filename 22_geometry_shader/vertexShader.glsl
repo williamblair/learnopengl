@@ -10,9 +10,12 @@ uniform mat4 uTransform;
 uniform mat4 uModel;
 
 // normal and fragment position (in world space) for lighting calculation
-out vec3 Normal;
-out vec3 FragPosition;
-out vec2 TexCoords;
+//out vec3 Normal;
+//out vec3 FragPosition;
+//out vec2 TexCoords;
+out vec3 GeomNormal;
+out vec3 GeomFragPosition;
+out vec2 GeomTexCoords;
 
 void main()
 {
@@ -20,7 +23,7 @@ void main()
     // this transpose/inverse is expensive and should techincally be
     // pre computed for efficiency
     // the matrix aNormal is multiplied by is called the normal matrix
-    Normal = mat3(transpose(inverse(uModel))) * aNormal;
-    FragPosition = vec3(uModel * vec4(aPos.x, aPos.y, aPos.z, 1.0));
-    TexCoords = aTexCoords;
+    GeomNormal = mat3(transpose(inverse(uModel))) * aNormal;
+    GeomFragPosition = vec3(uModel * vec4(aPos.x, aPos.y, aPos.z, 1.0));
+    GeomTexCoords = aTexCoords;
 }

@@ -95,4 +95,26 @@ Shader createFragmentShader(const std::string& fileName)
     return fragmentShader;
 }
 
+Shader createGeometryShader(const std::string& fileName) 
+{
+    Shader      geometryShader;
+    const char* shaderSources[1];
+
+    //std::string fileName = "geometryShader.glsl";
+
+    geometryShader.fileName = fileName;
+    geometryShader.source = loadShaderString(fileName);
+
+    geometryShader.id = glCreateShader(GL_GEOMETRY_SHADER);
+    shaderSources[0] = geometryShader.source.c_str();
+    glShaderSource(geometryShader.id,
+                    1,
+                    shaderSources,
+                    NULL);
+    glCompileShader(geometryShader.id);
+    checkShaderCompileError(geometryShader.id);
+
+    return geometryShader;
+}
+
 #endif // !SHADER_H_INCLUDED

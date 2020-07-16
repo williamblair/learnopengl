@@ -14,14 +14,19 @@ class ShaderProgram
 {
 friend class Mesh; // allow mesh to access internal ID value
 public:
-    ShaderProgram() {}
+    ShaderProgram() :
+        hasGeometryShader(false)
+    {
+    }
     ~ShaderProgram() 
     {
         //glDeleteShader(vertexShader.id);
         //glDeleteShader(fragmentShader.id);
     }
 
-    void Create(const std::string& vertexFileName, const std::string& fragmentFileName)
+    void Create(const std::string& vertexFileName,
+                const std::string& fragmentFileName,
+                const std::string& geometryFileName = "")
     {
         id = glCreateProgram();
         //program.vertexShader = &vertexShader;
@@ -29,9 +34,17 @@ public:
 
         vertexShader = createVertexShader(vertexFileName);
         fragmentShader = createFragmentShader(fragmentFileName);
-
         glAttachShader(id, vertexShader.id);
         glAttachShader(id, fragmentShader.id);
+
+        if (geometryFileName.size() > 0) {
+            std::cout << "Creating geometry shader: " 
+                      << geometryFileName << std::endl;
+            geometryShader = createGeometryShader(geometryFileName);
+            hasGeometryShader = true;        
+            glAttachShader(id, geometryShader.id);
+        }
+
         glLinkProgram(id);
 
         checkShaderProgramCompileError(id);
@@ -75,6 +88,8 @@ public:
 private:
     Shader vertexShader;
     Shader fragmentShader;
+    Shader geometryShader;
+    bool   hasGeometryShader;
     unsigned int id;
 
     void checkShaderProgramCompileError(unsigned int id)
