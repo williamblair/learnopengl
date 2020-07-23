@@ -32,30 +32,28 @@ glm::vec3 gLightDirection = glm::vec3(-0.2F, -1.0F, -0.3F);
 Cube gCube;
 glm::mat4 gCubeModelMat;
 
-Model gModel;
-glm::mat4 gModelModelMat;
-glm::vec3 gModelPosition = glm::vec3(0.0f, 0.0f, 0.0f);
-
 const size_t amount = 100000;
 float radius = 50.0F;
 float offset = 2.5F;
 Model gAsteroidModel;
-glm::mat4 gAsteroidModelMats[amount];
+glm::mat4* gAsteroidModelMats = new glm::mat4[amount];
+GLuint gAsteroidInstanceVBO;
 
 Model gPlanetModel;
 glm::mat4 gPlanetModelMat;
 
-//Shader gVertexShader;
-//Shader gFragmentShader;
 ShaderProgram gShaderProgram;
-std::map<std::string, int> gUniformLocations;
+ShaderProgram gAsteroidsShaderProgram;
 
 // shaders just used by the object representing the light
-//Shader gLightFragmentShader;
-ShaderProgram gLightShaderProgram; 
+//ShaderProgram gLightShaderProgram; 
 
 glm::mat4 gModelTransMat;
-glm::mat4 gLightTransMat;
+//glm::mat4 gLightTransMat;
+
+glm::mat4 gViewMatrix;
+glm::mat4 gProjMatrix;
+
 Camera gCamera;
 ////////////////////////////////////////////////////
 
@@ -199,51 +197,68 @@ static void moveCamera()
 
 static void updateUniforms()
 {
-    // main shader
-    gShaderProgram.Use();
-    //gShaderProgram.SetMat4fv("uTransform", gModelTransMat);
-    gShaderProgram.SetVec3fv("uCameraPosition", gCamera.position);
-    // for positional light
-    gShaderProgram.SetVec3fv("uPosLight.position", gLightPosition);
-    // for directional light
-    gShaderProgram.SetVec3fv("uDirLight.direction", gLightDirection);
-    // for spotlight
-    gShaderProgram.SetVec3fv("uSpotLight.position", gCamera.position);
-    gShaderProgram.SetVec3fv("uSpotLight.direction", gCamera.front);
-    gShaderProgram.SetMat4fv("uModel", gModelModelMat);
+    static ShaderProgram* shaderPtrs[] = {
+        &gShaderProgram,
+        &gAsteroidsShaderProgram
+    };
 
-    // main shader: model material properties
-    gShaderProgram.SetVec1f("uMaterial.shininess", 32.0F);
+    for (size_t i = 0; i < 2; i++)
+    {
 
-    // main shader: light properties
-    glm::vec3 lightAmbient = glm::vec3(0.2F, 0.2F, 0.2F);
-    glm::vec3 lightDiffuse = glm::vec3(0.99F, 0.99F, 0.99F);
-    glm::vec3 onesVec = glm::vec3(1.0F, 1.0F, 1.0F);
-    gShaderProgram.SetVec3fv("uDirLight.ambient", lightAmbient);
-    gShaderProgram.SetVec3fv("uDirLight.diffuse", lightDiffuse); // darkened
-    gShaderProgram.SetVec3fv("uDirLight.specular", onesVec);
-    gShaderProgram.SetVec3fv("uPosLight.ambient", lightAmbient);
-    gShaderProgram.SetVec3fv("uPosLight.diffuse", lightDiffuse); // darkened
-    gShaderProgram.SetVec3fv("uPosLight.specular", onesVec);
-    gShaderProgram.SetVec3fv("uSpotLight.ambient", lightAmbient);
-    gShaderProgram.SetVec3fv("uSpotLight.diffuse", lightDiffuse); // darkened
-    gShaderProgram.SetVec3fv("uSpotLight.specular", onesVec);
+        ShaderProgram* sPtr = shaderPtrs[i];
+
+        // main shader
+        sPtr->Use();
+        if (sPtr == &gShaderProgram) {
+            sPtr->SetMat4fv("uTransform", gModelTransMat);
+        } else {
+            sPtr->SetMat4fv("uProjection", gProjMatrix);
+            sPtr->SetMat4fv("uView", gViewMatrix);
+        }
+        sPtr->SetVec3fv("uCameraPosition", gCamera.position);
+        // for positional light
+        sPtr->SetVec3fv("uPosLight.position", gLightPosition);
+        // for directional light
+        sPtr->SetVec3fv("uDirLight.direction", gLightDirection);
+        // for spotlight
+        sPtr->SetVec3fv("uSpotLight.position", gCamera.position);
+        sPtr->SetVec3fv("uSpotLight.direction", gCamera.front);
+        //sPtr->SetMat4fv("uModel", gModelModelMat);
     
-    // for positional light
-    gShaderProgram.SetVec1f("uPosLight.constant", 1.0F);
-    gShaderProgram.SetVec1f("uPosLight.linear", 0.22F);
-    gShaderProgram.SetVec1f("uPosLight.quadratic", 0.20F);
+        // main shader: model material properties
+        sPtr->SetVec1f("uMaterial.shininess", 32.0F);
+    
+        // main shader: light properties
+        glm::vec3 lightAmbient = glm::vec3(0.2F, 0.2F, 0.2F);
+        glm::vec3 lightDiffuse = glm::vec3(0.99F, 0.99F, 0.99F);
+        glm::vec3 onesVec = glm::vec3(1.0F, 1.0F, 1.0F);
+        sPtr->SetVec3fv("uDirLight.ambient", lightAmbient);
+        sPtr->SetVec3fv("uDirLight.diffuse", lightDiffuse); // darkened
+        sPtr->SetVec3fv("uDirLight.specular", onesVec);
+        sPtr->SetVec3fv("uPosLight.ambient", lightAmbient);
+        sPtr->SetVec3fv("uPosLight.diffuse", lightDiffuse); // darkened
+        sPtr->SetVec3fv("uPosLight.specular", onesVec);
+        sPtr->SetVec3fv("uSpotLight.ambient", lightAmbient);
+        sPtr->SetVec3fv("uSpotLight.diffuse", lightDiffuse); // darkened
+        sPtr->SetVec3fv("uSpotLight.specular", onesVec);
+        
+        // for positional light
+        sPtr->SetVec1f("uPosLight.constant", 1.0F);
+        sPtr->SetVec1f("uPosLight.linear", 0.22F);
+        sPtr->SetVec1f("uPosLight.quadratic", 0.20F);
+    
+        // for spotlight
+        sPtr->SetVec1f("uSpotLight.cutoff", glm::cos(glm::radians(12.5F)));
+        sPtr->SetVec1f("uSpotLight.outerCutoff", glm::cos(glm::radians(17.5F)));
 
-    // for spotlight
-    gShaderProgram.SetVec1f("uSpotLight.cutoff", glm::cos(glm::radians(12.5F)));
-    gShaderProgram.SetVec1f("uSpotLight.outerCutoff", glm::cos(glm::radians(17.5F)));
+    }
 
     // light source shader
-    gLightShaderProgram.Use();
+    //gLightShaderProgram.Use();
     // the light source uses the same vertices/buffer object
     // as the cube above
-    gLightShaderProgram.SetMat4fv("uTransform", gLightTransMat);
-    gLightShaderProgram.SetVec3fv("uLightColor", lightDiffuse);
+    //gLightShaderProgram.SetMat4fv("uTransform", gLightTransMat);
+    //gLightShaderProgram.SetVec3fv("uLightColor", lightDiffuse);
 }
 
 // called once every frame during main loop
@@ -257,14 +272,6 @@ static void draw()
     glClearColor(r, g, b, a);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    // draw the model
-    //gShaderProgram.Use();
-    //updateTransformationMatrix(gModelTransMat, gModelPosition, gCamera);
-    //gModelModelMat = glm::mat4(1.0F);
-    //gModelModelMat = glm::translate(gModelModelMat, gModelPosition);
-    //gShaderProgram.SetMat4fv("uModel", gModelModelMat);
-    //gModel.Draw(gShaderProgram);
-
     // draw the planet
     gShaderProgram.Use();
     gPlanetModelMat = glm::mat4(1.0F);
@@ -276,20 +283,16 @@ static void draw()
     gPlanetModel.Draw(gShaderProgram);
 
     // draw the asteroids
-    gShaderProgram.Use();
-    for (size_t i = 0; i < amount; i++)
+    gAsteroidsShaderProgram.Use();
+    for (size_t i = 0; i < gAsteroidModel.meshes.size(); i++)
     {
-        gShaderProgram.SetMat4fv("uModel", gAsteroidModelMats[i]);
-        updateTransformationMatrix(gModelTransMat, gAsteroidModelMats[i], gCamera);
-        gShaderProgram.SetMat4fv("uTransform", gModelTransMat);
-        gAsteroidModel.Draw(gShaderProgram);
+        glBindVertexArray(gAsteroidModel.meshes[i].VAO);
+        glDrawElementsInstanced(GL_TRIANGLES, 
+                                gAsteroidModel.meshes[i].indices.size(), 
+                                GL_UNSIGNED_INT,
+                                0,
+                                amount);
     }
-    
-
-    // draw the light source
-    gLightShaderProgram.Use();
-    glBindVertexArray(gLightSource.VAO);
-    glDrawArrays(GL_TRIANGLES, 0, gCube.numVertices);
 }
 
 int main(void)
@@ -317,21 +320,21 @@ int main(void)
     // Shader.h/ShaderProgram.h
     gShaderProgram.Create("vertexShader.glsl", "fragmentShader.glsl");
     gShaderProgram.Use();
+    gAsteroidsShaderProgram.Create("vertexShader_instanced.glsl", "fragmentShader.glsl");
 
     // Model.h
-    gModel.Load("backpack/backpack.obj");
     gAsteroidModel.Load("rock/rock.obj");
     gPlanetModel.Load("planet/planet.obj");
 
     // make a shader just for the light source, which uses a different
     // fragment shader and the same vertex shader
-    gLightShaderProgram.Create("vertexShader.glsl", "lightFragmentShader.glsl");
+    //gLightShaderProgram.Create("vertexShader.glsl", "lightFragmentShader.glsl");
 
     // LightSource.h
     gLightSource = createLightSource(gCube);
 
     // Transform.h
-    gLightTransMat = createTransformationMatrix();
+    //gLightTransMat = createTransformationMatrix();
 
     // init asteroid positions
     for (size_t i = 0; i < amount; i++)
@@ -363,6 +366,63 @@ int main(void)
         gAsteroidModelMats[i] = model;
     }
 
+    // Create instanced drawing buffer
+    //gAsteroidsShaderProgram.Use();
+    glGenBuffers(1, &gAsteroidInstanceVBO);
+    glBindBuffer(GL_ARRAY_BUFFER, gAsteroidInstanceVBO);
+    glBufferData(GL_ARRAY_BUFFER, 
+        amount * sizeof(glm::mat4),
+        &gAsteroidModelMats[0],
+        GL_STATIC_DRAW);
+
+    for (size_t i = 0; i < gAsteroidModel.meshes.size(); i++)
+    {
+        GLuint VAO = gAsteroidModel.meshes[i].VAO;
+        glBindVertexArray(VAO);
+
+        // vertex attributes
+        size_t v4size = sizeof(glm::vec4);
+        size_t instanceMatLoc = 3; // attribute layout location
+        size_t floatsPerPosition = 4;
+        //size_t vertexStride = floatsPerPosition * v4size;
+        size_t vertexStride = sizeof(glm::mat4);
+        glEnableVertexAttribArray(instanceMatLoc + 0);
+        glVertexAttribPointer(instanceMatLoc + 0,
+                              floatsPerPosition,
+                              GL_FLOAT,
+                              GL_FALSE,
+                              vertexStride,
+                              (void*)0); // column 0 offset
+        glEnableVertexAttribArray(instanceMatLoc + 1);
+        glVertexAttribPointer(instanceMatLoc + 1,
+                              floatsPerPosition,
+                              GL_FLOAT,
+                              GL_FALSE,
+                              vertexStride,
+                              (void*)(1*v4size)); // column 0 offset
+        glEnableVertexAttribArray(instanceMatLoc + 2);
+        glVertexAttribPointer(instanceMatLoc + 2,
+                              floatsPerPosition,
+                              GL_FLOAT,
+                              GL_FALSE,
+                              vertexStride,
+                              (void*)(2*v4size)); // column 0 offset
+        glEnableVertexAttribArray(instanceMatLoc + 3);
+        glVertexAttribPointer(instanceMatLoc + 3,
+                              floatsPerPosition,
+                              GL_FLOAT,
+                              GL_FALSE,
+                              vertexStride,
+                              (void*)(3*v4size)); // column 0 offset
+
+        glVertexAttribDivisor(instanceMatLoc + 0, 1); // 1 = update the attribute every instance (0 = every vertex)
+        glVertexAttribDivisor(instanceMatLoc + 1, 1); // 1 = update the attribute every instance (0 = every vertex)
+        glVertexAttribDivisor(instanceMatLoc + 2, 1); // 1 = update the attribute every instance (0 = every vertex)
+        glVertexAttribDivisor(instanceMatLoc + 3, 1); // 1 = update the attribute every instance (0 = every vertex)
+
+        glBindVertexArray(0);
+    }
+
     while (!glfwWindowShouldClose(gWindow))
     {
         if (glfwGetKey(gWindow, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
@@ -388,7 +448,9 @@ int main(void)
         //gLightDirection.x = cos(glfwGetTime()) * lightMoveRadius;
 
         // Transform.h
-        updateTransformationMatrix(gLightTransMat, gLightPosition, gCamera);
+        //updateTransformationMatrix(gLightTransMat, gLightPosition, gCamera);
+        //updateTransformationMatrix(gViewMatrix, gProjMatrix, gCamera);
+        updateViewAndProjMatrix(gViewMatrix, gProjMatrix, gCamera);
 
         // send updated matrix/position data to the shaders
         updateUniforms();
@@ -399,6 +461,7 @@ int main(void)
         glfwPollEvents();
     }
 
+    delete[] gAsteroidModelMats;
     glfwTerminate();
     return 0;
 }
