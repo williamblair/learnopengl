@@ -21,16 +21,41 @@ float ShadowCalculation(vec4 fragPosLightSpace)
     // anything currently
     vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
 
+    // quick check which fixes invalid z coordinates (otherwise get line shadow area without this)
+    if (projCoords.z > 1.0) {
+        return 0.0;
+    }
+
     // convert from [-1,1] to [0,1]
     projCoords = projCoords * 0.5 + 0.5;
 
     // get the calculated nearest and current fragment depth
-    float closestDepth = texture(uShadowMapTex, projCoords.xy).r;
+    //float closestDepth = texture(uShadowMapTex, projCoords.xy).r;
     float currentDepth = projCoords.z;
 
+// calculation without bias (produces shadow acne)
     // set wether the fragment is a shadow or not if its depth
     // is farther back than the closest depth
-    float isShadow = (currentDepth > closestDepth) ? 1.0 : 0.0;
+    //float isShadow = (currentDepth > closestDepth) ? 1.0 : 0.0;
+
+// calculation with bias (prevents shadow acne)
+// as well as PCF (percentage-closer filtering)
+    // set wether the fragment is a shadow or not if its depth
+    // is farther back than the closest depth
+    vec3 normal = normalize(fs_in.Normal);
+    vec3 lightDir = normalize(uLightPos - fs_in.FragPos);
+    float bias = max(0.05 * (1.0 - dot(normal, lightDir)), 0.005);
+    float isShadow = 0.0;
+    vec2 texelSize = 1.0 / textureSize(uShadowMapTex, 0);
+    for (int x = -1; x <= 1; x++)
+    {
+        for (int y = -1; y <=1; y++)
+        {
+            float closestDepth = texture(uShadowMapTex, projCoords.xy + vec2(x,y) * texelSize).r;
+            isShadow += ((currentDepth - bias) > closestDepth) ? 1.0 : 0.0;
+        }
+    }
+    isShadow /= 9.0; // average it out
 
     return isShadow;
 }

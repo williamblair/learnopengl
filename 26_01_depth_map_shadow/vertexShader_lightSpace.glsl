@@ -10,5 +10,6 @@ uniform mat4 uModel;
 void main()
 {
     gl_Position = uTransform * uModel * vec4(aPos, 1.0);
+    //gl_Position = vec4(aPos, 1.0);
 }
 

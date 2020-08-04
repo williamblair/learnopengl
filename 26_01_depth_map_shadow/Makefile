@@ -1,5 +1,5 @@
 CC = g++
-CFLAGS = -g -std=c++11
+CFLAGS = -g -std=c++11 -Wall
 #LIBS = -lglfw -lGLU -lGL -lassimp -ldl
 LIBS = -lglfw3 -lglu32 -lopengl32 -lassimp
 INCDIRS = -I../ -I./

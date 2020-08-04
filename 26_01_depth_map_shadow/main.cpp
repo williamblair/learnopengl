@@ -19,6 +19,8 @@
 #include "LightSource.h"
 #include "Floor.h"
 #include "DepthMap.h"
+#include "FrameBuffer.h"
+#include "ScreenTexture.h"
 
 // Globals
 const size_t WINDOW_WIDTH = 800;
@@ -53,6 +55,12 @@ std::map<std::string, int> gUniformLocations;
 Shader gLightVertexShader;
 Shader gLightFragmentShader;
 ShaderProgram gLightShaderProgram;
+
+// used to draw the framebuffered screen texture
+Shader gScreenVertexShader;
+Shader gScreenFragmentShader;
+ShaderProgram gScreenShaderProgram;
+ScreenTexture gScreenTexture;
 
 glm::mat4 gCubeTransMat;
 glm::mat4 gLightTransMat;
@@ -206,12 +214,6 @@ static void updateUniforms()
 {
     // main shader
     glUseProgram(gShaderProgram.id);
-#if 0
-    glUniformMatrix4fv(gUniformLocations["uTransform"],
-        1, // number of matrices
-        GL_FALSE, // should the matrices be transposed?
-        glm::value_ptr(gCubeTransMat)); // pointer to data
-#endif
     glUniform3f(gUniformLocations["uViewPos"],
         gCamera.position.x,
         gCamera.position.y,
@@ -221,22 +223,10 @@ static void updateUniforms()
         gLightPosition.x,
         gLightPosition.y,
         gLightPosition.z);
-#if 0
-    glUniformMatrix4fv(gUniformLocations["uModel"],
-        1,
-        GL_FALSE,
-        glm::value_ptr(gCubeModelMat));
-#endif
 
     // main shader: light properties
     glm::vec3 lightAmbient = glm::vec3(0.2F, 0.2F, 0.2F);
     glm::vec3 lightDiffuse = glm::vec3(0.99F, 0.99F, 0.99F);
-#if 0
-    glUniform1i(gUniformLocations["uBlinnShading"], gUseBlinnShading);
-    glUniform1i(gUniformLocations["uMaterial.texture_diffuse1"], 0); // texture 0 for diffuse
-    glUniform1i(gUniformLocations["uGammaCorrection"], gManualGamma);
-    glUniform1f(gUniformLocations["uGammaVal"], gManualGammaVal);
-#endif
     // light source shader
     glUseProgram(gLightShaderProgram.id);
     static int uTransformLocation = glGetUniformLocation(gLightShaderProgram.id, "uTransform");
@@ -248,23 +238,29 @@ static void updateUniforms()
         glm::value_ptr(gLightTransMat)); // pointer to data
     static int uLightColorLocation = glGetUniformLocation(gLightShaderProgram.id, "uLightColor");
     glUniform3fv(uLightColorLocation, 1, glm::value_ptr(lightDiffuse));
+
+    // debug depth shader
+    static int uDepthTextureLoc = glGetUniformLocation(gScreenShaderProgram.id, "uScreenTexture");
+    glUniform1i(uDepthTextureLoc, 0); // GL texture 2D 0
 }
 
 // called once every frame during main loop
 static void draw()
 {
     // draw to the depth map
+    // clear the screen
+    GLfloat r = 0.2F; // red
+    GLfloat g = 0.3F; // green
+    GLfloat b = 0.3F; // blue
+    GLfloat a = 1.0F; // alpha
+    glClearColor(r, g, b, a);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glUseProgram(gDepthShaderProgram.id);
     glViewport(0, 0, gDepthMap.width, gDepthMap.height);
     glBindFramebuffer(GL_FRAMEBUFFER, gDepthMap.framebufferID);
-    
-        // clear the screen
-        GLfloat r = 0.2F; // red
-        GLfloat g = 0.3F; // green
-        GLfloat b = 0.3F; // blue
-        GLfloat a = 1.0F; // alpha
-        glClearColor(r, g, b, a);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glClear(GL_DEPTH_BUFFER_BIT);
+    glActiveTexture(GL_TEXTURE0);
+    glCullFace(GL_FRONT); 
 
         // calculate light matrices
         // (this is a directional light)
@@ -288,14 +284,6 @@ static void draw()
                             glm::value_ptr(lightSpaceMat));
     
         // draw the floor
-        //glUseProgram(gShaderProgram.id);
-        //glActiveTexture(GL_TEXTURE0);
-        //glBindTexture(GL_TEXTURE_2D, gWoodTexture.id);
-        //updateTransformationMatrix(gFloorTransMat, gFloorPosition, gCamera);
-        //glUniformMatrix4fv(gUniformLocations["uTransform"],
-        //    1, // number of matrices
-        //    GL_FALSE, // should the matrices be transposed?
-        //    glm::value_ptr(gFloorTransMat)); // pointer to data
         gFloorModelMat = glm::mat4(1.0F);
         gFloorModelMat = glm::translate(gFloorModelMat, gFloorPosition);
         static GLuint depthShaderModelLoc = 
@@ -327,7 +315,9 @@ static void draw()
 
     // done drawing to the depth map
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glCullFace(GL_BACK);
 
+#if 1
     // draw the scene normally
     glUseProgram(gShaderProgram.id);
     glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
@@ -369,11 +359,6 @@ static void draw()
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, gDepthMap.textureID);
     glUniform1i(gUniformLocations["uShadowMapTex"], 1); // texture 1
-    //updateTransformationMatrix(gFloorTransMat, gFloorPosition, gCamera);
-    //glUniformMatrix4fv(gUniformLocations["uTransform"],
-    //    1, // number of matrices
-    //    GL_FALSE, // should the matrices be transposed?
-    //    glm::value_ptr(gFloorTransMat)); // pointer to data
     gFloorModelMat = glm::mat4(1.0F);
     gFloorModelMat = glm::translate(gFloorModelMat, gFloorPosition);
     glUniformMatrix4fv(gUniformLocations["uModel"],
@@ -403,6 +388,24 @@ static void draw()
     glUseProgram(gLightShaderProgram.id);
     glBindVertexArray(gLightSource.VAO);
     glDrawArrays(GL_TRIANGLES, 0, gCube.numVertices);
+
+#endif
+    // draw the depth buffer texture (for debug)
+#if 0
+    glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
+    // clear the screen
+    r = 0.2F; // red
+    g = 0.3F; // green
+    b = 0.3F; // blue
+    a = 1.0F; // alpha
+    glClearColor(r, g, b, a);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glUseProgram(gScreenShaderProgram.id);
+    glBindVertexArray(gScreenTexture.VAO);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, gDepthMap.textureID);
+    glDrawArrays(GL_TRIANGLES, 0, gScreenTexture.numVertices);
+#endif
 }
 
 int main(void)
@@ -445,6 +448,11 @@ int main(void)
         gFragmentShader);
     glUseProgram(gShaderProgram.id);
 
+    // Frame buffer drawn to screen shader
+    gScreenVertexShader = createVertexShader("vertexShader_screenTexture.glsl");
+    gScreenFragmentShader = createFragmentShader("fragmentShader_screenTexture.glsl");
+    gScreenShaderProgram = createShaderProgram(gScreenVertexShader, gScreenFragmentShader);
+
     gDepthVertexShader = createVertexShader("vertexShader_lightSpace.glsl");
     gDepthFragmentShader = createFragmentShader("fragmentShader_lightSpace.glsl");
     gDepthShaderProgram = createShaderProgram(gDepthVertexShader, 
@@ -458,16 +466,6 @@ int main(void)
     gUniformLocations["uView"] = glGetUniformLocation(gShaderProgram.id, "uView");
     gUniformLocations["uModel"] = glGetUniformLocation(gShaderProgram.id, "uModel");
     gUniformLocations["uLightSpaceMat"] = glGetUniformLocation(gShaderProgram.id, "uLightSpaceMat");
-
-    //gUniformLocations["uCameraPosition"] = glGetUniformLocation(gShaderProgram.id, "uCameraPosition");
-    //gUniformLocations["uTransform"] = glGetUniformLocation(gShaderProgram.id, "uTransform");
-    //gUniformLocations["uModel"] = glGetUniformLocation(gShaderProgram.id, "uModel");
-    //gUniformLocations["uMaterial.texture_diffuse1"] = glGetUniformLocation(gShaderProgram.id, "uMaterial.texture_diffuse1");
-    // for positional light and spotlight
-    //gUniformLocations["uPosLight.position"] = glGetUniformLocation(gShaderProgram.id, "uPosLight.position");
-    //gUniformLocations["uBlinnShading"] = glGetUniformLocation(gShaderProgram.id, "uBlinnShading");
-    //gUniformLocations["uGammaCorrection"] = glGetUniformLocation(gShaderProgram.id, "uGammaCorrection");
-    //gUniformLocations["uGammaVal"] = glGetUniformLocation(gShaderProgram.id, "uGammaVal");
 
     // make a shader just for the light source
     gLightVertexShader = createVertexShader("lightVertexShader.glsl");
@@ -489,33 +487,14 @@ int main(void)
     // DepthMap.h
     gDepthMap = createDepthMap();
 
+    // ScreenTexture.h
+    gScreenTexture = createScreenTexture();
+
     while (!glfwWindowShouldClose(gWindow))
     {
         if (glfwGetKey(gWindow, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
             glfwSetWindowShouldClose(gWindow, true);
         }
-        // press space to switch between blinn-phong and phong shading
-        //else if (glfwGetKey(gWindow, GLFW_KEY_SPACE) == GLFW_PRESS) {
-        //    gUseBlinnShading = !gUseBlinnShading;
-        //    glUniform1i(gUniformLocations["uBlinnShading"], gUseBlinnShading);
-        //    std::cout << "Using blinn shading: " << gUseBlinnShading << std::endl;
-        //}
-        // press enter to toggle OpenGL auto gamma correction (sRGB color space) 
-        //else if (glfwGetKey(gWindow, GLFW_KEY_ENTER) == GLFW_PRESS) {
-        //    gOpenglGamma = !gOpenglGamma;
-        //    if (gOpenglGamma) {
-        //        glEnable(GL_FRAMEBUFFER_SRGB);
-        //    } else {
-        //        glDisable(GL_FRAMEBUFFER_SRGB);
-        //    }
-        //    std::cout << "OpenGL Gamma: " << gOpenglGamma << std::endl;
-        //}
-        // press G to toggle manual gamma correction
-        //else if (glfwGetKey(gWindow, GLFW_KEY_G) == GLFW_PRESS) {
-        //    gManualGamma = !gManualGamma;
-        //    glUniform1i(gUniformLocations["uGammaCorrection"], gManualGamma);
-        //    std::cout << "Use manual Gamma: " << gManualGamma << std::endl;
-        //}
 
         moveCamera();
 
