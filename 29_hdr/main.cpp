@@ -20,7 +20,7 @@
 #include "LightSource.h"
 #include "Floor.h"
 #include "DepthMap.h"
-#include "FrameBuffer.h"
+#include "HDRFrameBuffer.h"
 #include "ScreenTexture.h"
 
 // Globals
@@ -28,12 +28,23 @@ const size_t WINDOW_WIDTH = 800;
 const size_t WINDOW_HEIGHT = 600;
 GLFWwindow* gWindow = nullptr;
 
-Cube gCube; // for the light source to use
+Cube gCube; // The cube at the end of the tunnel
 LightSource gLightSource;
-glm::vec3 gLightPosition = glm::vec3(0.5f, 1.0f, 0.3F);
-glm::vec3 gLightDirection = glm::vec3(-0.2F, 0.0F, -0.3F);
+std::vector<glm::vec3> gLightPositions = {
+    glm::vec3( 0.0f,  0.0f, 49.5f), // back light
+    glm::vec3(-1.4f, -1.9f, 9.0f),
+    glm::vec3( 0.0f, -1.8f, 4.0f),
+    glm::vec3( 0.8f, -1.7f, 6.0f)
+};
 
-Texture gDiffuseMap;
+std::vector<glm::vec3> gLightColors = {
+    glm::vec3(200.0f, 200.0f, 200.0f), // super bright light to cause overload if HDR not used
+    glm::vec3(0.1f, 0.0f, 0.0f),
+    glm::vec3(0.0f, 0.0f, 0.2f),
+    glm::vec3(0.0f, 0.1f, 0.0f)
+};
+
+Texture gWoodTexture;
 
 Floor gFloor;
 glm::vec3 gFloorPosition = glm::vec3(0.0f, -4.0f, 0.0f);
@@ -56,6 +67,11 @@ ShaderProgram gLightShaderProgram;
 
 Camera gCamera;
 
+HDRFrameBuffer gHDRFrameBuffer;
+ScreenTexture gScreenTexture;
+
+float gExposure = 5.0;
+bool gUseHdr = false;
 ////////////////////////////////////////////////////
 
 // GLFW callback functions
@@ -194,6 +210,25 @@ static void moveCamera()
             glm::cross(gCamera.front, gCamera.up)) *
             cameraSpeed;
     }
+
+    static bool spaceWasPressed = false;
+    if (glfwGetKey(gWindow, GLFW_KEY_SPACE) == GLFW_PRESS) {
+        if (!spaceWasPressed) {
+            gUseHdr = !gUseHdr;
+            std::cout << "Use HDR: " << gUseHdr << std::endl;
+            spaceWasPressed = true;
+        }
+    } else {
+        spaceWasPressed = false;
+    }
+
+    if (glfwGetKey(gWindow, GLFW_KEY_LEFT) == GLFW_PRESS) {
+        gExposure -= 0.1f;
+        std::cout << "gExposure: " << gExposure << std::endl;
+    } else if (glfwGetKey(gWindow, GLFW_KEY_RIGHT) == GLFW_PRESS) {
+        gExposure += 0.1f;
+        std::cout << "gExposure: " << gExposure << std::endl;
+    }
 }
 
 // called once every frame during main loop
@@ -210,103 +245,66 @@ static void draw()
     static GLuint uModel = GET_LOC("uModel");
     static GLuint uLightPos = GET_LOC("uLightPos");
     static GLuint uViewPos = GET_LOC("uViewPos");
+    static GLuint uInverseNormals = GET_LOC("uInverseNormals");
     #undef GET_LOC
 
     glUseProgram(gLightShaderProgram.id);
     static GLuint uTransform_light = glGetUniformLocation(gLightShaderProgram.id, "uTransform");
     static GLuint uLightColor_light = glGetUniformLocation(gLightShaderProgram.id, "uLightColor");
 
-    // draw the scene normally
+    glUseProgram(gHdrShaderProgram.id);
+    #define GET_LOC(name) glGetUniformLocation(gHdrShaderProgram.id, name)
+    static GLuint uHdrBuffer = GET_LOC("uHdrBuffer");
+    static GLuint uHdr = GET_LOC("uHdr");
+    static GLuint uExposure = GET_LOC("uExposure");
+    #undef GET_LOC
+
+    // render the scene into the floating point framebuffer
     glUseProgram(gShaderProgram.id);
-    glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
-    // clear the screen
-    GLfloat r = 0.2F; // red
-    GLfloat g = 0.3F; // green
-    GLfloat b = 0.3F; // blue
-    GLfloat a = 1.0F; // alpha
-    glClearColor(r, g, b, a);
+    glBindFramebuffer(GL_FRAMEBUFFER, gHDRFrameBuffer.id);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        static glm::mat4 projectionMat;
+        static glm::mat4 viewMat;
+        createProjectionMatrix(projectionMat, gCamera);
+        createViewMatrix(viewMat, gCamera);
+        glUniformMatrix4fv(uProjection, 1, GL_FALSE, glm::value_ptr(projectionMat));
+        glUniformMatrix4fv(uView, 1, GL_FALSE, glm::value_ptr(viewMat));
+        glActiveTexture(GL_TEXTURE0);
+        glUniform1i(uDiffuseTex, 0); // GL_TEXTURE0
+        glBindTexture(GL_TEXTURE_2D, gWoodTexture.id);
+        // set light uniforms
+        for (size_t i = 0; i < gLightPositions.size(); i++)
+        {
+            std::string str = "lights[" + std::to_string(i) + "].Position";
+            GLuint pos = glGetUniformLocation(gShaderProgram.id, str.c_str());
+            glUniform3fv(pos, 1, glm::value_ptr(gLightPositions[i]));
+            str = "lights[" + std::to_string(i) + "].Color";
+            pos = glGetUniformLocation(gShaderProgram.id, str.c_str());
+            glUniform3fv(pos, 1, glm::value_ptr(gLightColors[i]));
+        }
+        glUniform3fv(uViewPos, 1, glm::value_ptr(gCamera.position));
+
+        // render tunnel
+        glm::mat4 modelMat = glm::mat4(1.0f);
+        modelMat = glm::translate(modelMat, glm::vec3(0.0f, 0.0f, 25.0f));
+        modelMat = glm::scale(modelMat, glm::vec3(2.5f, 2.5f, 27.5f));
+        glUniformMatrix4fv(uModel, 1, GL_FALSE, glm::value_ptr(modelMat));
+        glUniform1i(uInverseNormals, true);
+        glBindVertexArray(gCube.VAO);
+        glDrawArrays(GL_TRIANGLES, 0, gCube.numVertices);
+        
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    // render the floating point color buffer to the 2D quad
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-    // set positional properties
-    glUniform3fv(uLightPos, 1, glm::value_ptr(gLightPosition));
-    glUniform3fv(uViewPos, 1, glm::value_ptr(gCamera.position));
-
-    // update the view and projection matrices
-    glm::mat4 gProjMat = glm::perspective(glm::radians(gCamera.FOV),
-        float(WINDOW_WIDTH) / float(WINDOW_HEIGHT),
-        0.1F,
-        100.0F);
-    glm::mat4 gViewMat = glm::lookAt(gCamera.position,
-        gCamera.position + gCamera.front,
-        gCamera.up);
-    glUniformMatrix4fv(uProjection, 1, GL_FALSE, glm::value_ptr(gProjMat));
-    glUniformMatrix4fv(uView, 1, GL_FALSE, glm::value_ptr(gViewMat));
-
-#if 0
-    // draw the floor
+    glUseProgram(gHdrShaderProgram.id);
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, gBrickWallTexture.id);
-    glUniform1i(uDiffuseTex, 0); // texture 0
-    // Bind our previously used depth map texture
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_CUBE_MAP, gDepthMap.textureID);
-    glUniform1i(uShadowMapTex, 1); // texture 1
-    gFloorModelMat = glm::mat4(1.0F);
-    gFloorModelMat = glm::translate(gFloorModelMat, gFloorPosition);
-    glUniformMatrix4fv(uModel, 1, GL_FALSE, glm::value_ptr(gFloorModelMat));
-    glBindVertexArray(gFloor.VAO);
-    glDrawArrays(GL_TRIANGLES, 0, gFloor.numVertices);
-#endif
-#if 0
-    // draw the room
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, gBrickWallTexture.id);
-    glUniform1i(uDiffuseTex, 0); // texture 0
-    // Bind our previously used depth map texture
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_CUBE_MAP, gDepthMap.textureID);
-    glUniform1i(uShadowMapTex, 1); // texture 1
-    glActiveTexture(GL_TEXTURE2);
-    glBindTexture(GL_TEXTURE_2D, gBrickWallNormalMap.id);
-    glUniform1i(uNormalMap, 2); // texture 2
-    //glUniformMatrix4fv(uModel, 1, GL_FALSE, glm::value_ptr(gRoomModelMat));
-    //glBindVertexArray(gRoomTangentPlane.VAO);
-    //glDrawArrays(GL_TRIANGLES, 0, gRoomTangentPlane.numVertices);
-#endif
-    
-#if 0
-    // set height map scale
-    glUniform1f(uHeightScale, 0.3); // TODO - make this adjustable
-
-    // draw some planes 
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, gDiffuseMap.id);
-    glUniform1i(uDiffuseTex, 0); // texture 0
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, gNormalMap.id);
-    glUniform1i(uNormalMap, 1); // texture 1
-    glActiveTexture(GL_TEXTURE2);
-    glBindTexture(GL_TEXTURE_2D, gDepthMap.id);
-    glUniform1i(uDepthMap, 2); // texture 2
-    for (const glm::vec3& position : gTangentPlanePositions)
-    {
-        gTangentPlaneModelMat = glm::mat4(1.0F);
-        gTangentPlaneModelMat = glm::translate(gTangentPlaneModelMat, position);
-        glUniformMatrix4fv(uModel,
-            1,
-            GL_FALSE,
-            glm::value_ptr(gTangentPlaneModelMat));
-        glBindVertexArray(gTangentPlane.VAO);
-        glDrawArrays(GL_TRIANGLES, 0, gTangentPlane.numVertices);
-    }
-#endif
-
-    // draw the light source
-    glUseProgram(gLightShaderProgram.id);
-    glUniformMatrix4fv(uTransform_light, 1, GL_FALSE, glm::value_ptr(gLightTransMat));
-    glUniform3f(uLightColor_light, 1.0f, 1.0f, 1.0f); // light color is white
-    glBindVertexArray(gLightSource.VAO);
-    glDrawArrays(GL_TRIANGLES, 0, gCube.numVertices);
+    glBindTexture(GL_TEXTURE_2D, gHDRFrameBuffer.colorBufferID);
+    glUniform1i(uHdr, gUseHdr);
+    glUniform1f(uExposure, gExposure); 
+    glUniform1i(uHdrBuffer, 0); // frame buffer 0
+    glBindVertexArray(gScreenTexture.VAO);
+    glDrawArrays(GL_TRIANGLES, 0, gScreenTexture.numVertices);
 
 }
 
@@ -367,13 +365,13 @@ int main(void)
     gLightTransMat = createTransformationMatrix();
 
     // Texture.h
-    gDiffuseMap = createTexture("bricks2.jpg");
+    gWoodTexture = createTexture("wood.png");
 
-    // DepthMap.h
-    //gDepthMap = createDepthMap();
+    // HDRFrameBuffer.h
+    gHDRFrameBuffer = createHDRFrameBuffer();
 
     // ScreenTexture.h
-    //gScreenTexture = createScreenTexture();
+    gScreenTexture = createScreenTexture();
 
     while (!glfwWindowShouldClose(gWindow))
     {
@@ -389,7 +387,7 @@ int main(void)
         //gLightDirection.x = cos(glfwGetTime()) * lightMoveRadius;
 
         // Transform.h
-        updateTransformationMatrix(gLightTransMat, gLightPosition, gCamera);
+        //updateTransformationMatrix(gLightTransMat, gLightPosition, gCamera);
 
         draw();
 

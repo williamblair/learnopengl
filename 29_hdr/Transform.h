@@ -7,6 +7,9 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+void createProjectionMatrix(glm::mat4& res, const Camera& cam);
+void createViewMatrix(glm::mat4& res, const Camera& cam);
+
 glm::mat4 createTransformationMatrix()
 {
     // identity matrix starting point
@@ -58,26 +61,39 @@ void updateTransformationMatrix(glm::mat4& transMat,
     //    glm::vec3(1.0F, 0.0F, 0.0F));
     modelMat = glm::translate(modelMat, objectPosition);
 
-    // View/camera matrix (world->view coordinates)
-    // OpenGL is a right handed system so world moves in the negative z axis
-    // (-z axis = forwards/away, +z axis = backwards/towards)
-    glm::mat4 viewMat = glm::lookAt(
-        camera.position,
-        camera.position + camera.front,
-        camera.up);
+    // view matrix (world->camera/eye/view coordinates)
+    glm::mat4 viewMat;
+    createViewMatrix(viewMat, camera);
 
     // Projection matrix (view->clip space coordinates)
-    float aspectRatio = 800.0F / 600.0F;
-    float nearClip = 0.1F;
-    float farClip = 100.0F;
-    glm::mat4 projMat = glm::perspective(glm::radians(camera.FOV),
-        aspectRatio,
-        nearClip,
-        farClip);
+    glm::mat4 projMat;
+    createProjectionMatrix(projMat, camera);
 
     // transformations should be applied from right to left: 
     // model, view, projection
     transMat = projMat * viewMat * modelMat;
+}
+
+void createProjectionMatrix(glm::mat4& res, const Camera& cam)
+{
+    float aspectRatio = 800.0F / 600.0F;
+    float nearClip = 0.1F;
+    float farClip = 100.0F;
+    res = glm::perspective(glm::radians(cam.FOV),
+        aspectRatio,
+        nearClip,
+        farClip);
+}
+
+void createViewMatrix(glm::mat4& res, const Camera& cam)
+{
+    // View/camera matrix (world->view coordinates)
+    // OpenGL is a right handed system so world moves in the negative z axis
+    // (-z axis = forwards/away, +z axis = backwards/towards)
+    res = glm::lookAt(
+        cam.position,
+        cam.position + cam.front,
+        cam.up);
 }
 
 #endif // !TRANSFORM_H_INCLUDED

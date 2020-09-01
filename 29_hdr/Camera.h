@@ -20,16 +20,16 @@ Camera createCamera()
 
     // a yaw of 0 points to the positive X axis;
     // we instead want it to point towards -z
-    camera.yaw = -90.0F;
+    camera.yaw = 90.0F;
     camera.pitch = 0.0F;
 
     camera.FOV = 45.0F;
 
-    // 3 coordinates backwards
-    camera.position = glm::vec3(0.0F, 0.0F, 3.0F);
+    // 7 coordinates backwards
+    camera.position = glm::vec3(0.0F, 0.0F, -2.5F);
 
     // -z axis = forwards
-    camera.front = glm::vec3(0.0F, 0.0F, -1.0F);
+    camera.front = glm::vec3(0.0F, 0.0F, 1.0F);
 
     // vertical Y = up
     camera.up = glm::vec3(0.0F, 1.0F, 0.0F);
