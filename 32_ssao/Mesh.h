@@ -29,6 +29,8 @@ public:
 
     void Draw(const ShaderProgram& shader)
     {
+// no textures in this example
+#if 0
         unsigned int diffuseCount = 1;
         unsigned int specularCount = 1;
         for (size_t i = 0; i < textures.size(); i++)
@@ -74,7 +76,7 @@ public:
             glBindTexture(GL_TEXTURE_2D, textures[i].id);
         }
         glActiveTexture(GL_TEXTURE0);
-
+#endif
         // draw the mesh
         glBindVertexArray(VAO);
         glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);

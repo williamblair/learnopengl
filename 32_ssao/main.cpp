@@ -39,22 +39,24 @@ Model gModel;
 
 Cube gCube; // The cube at the end of the tunnel
 
-Texture gWoodTexture;
-Texture gContainerTexture;
-
+// the geometry stage SSAO shader
 Shader gVertexShader;
 Shader gFragmentShader;
 ShaderProgram gShaderProgram;
 
-Shader gDeferredVertexShader;
-Shader gDeferredFragmentShader;
-ShaderProgram gDeferredShaderProgram;
+Shader gVertexSSAOShader;
+Shader gFragmentSSAOShader;
+ShaderProgram gSSAOShaderProgram;
+
+Shader gVertexSSAOBlurShader;
+Shader gFragmentSSAOBlurShader;
+ShaderProgram gSSAOBlurShaderProgram;
 
 Shader gDebugBufferVertexShader;
 Shader gDebugBufferFragmentShader;
 ShaderProgram gDebugBufferShaderProgram;
 
-// shaders just used by the object representing the light
+// the final lighting pass/result of ssao output
 Shader gLightVertexShader;
 Shader gLightFragmentShader;
 ShaderProgram gLightShaderProgram;
@@ -69,8 +71,10 @@ SSAONoiseTexture gSSAONoise;
 BlurFrameBuffer gBlurFrameBuffer;
 ScreenTexture gScreenTexture;
 
-float gExposure = 5.0;
-bool gBloom = true;
+bool gUseSSAO = true;
+
+glm::vec3 gLightPos(2.0, 4.0, -2.0);
+glm::vec3 gLightColor(0.2, 0.2, 0.7);
 ////////////////////////////////////////////////////
 
 // GLFW callback functions
@@ -210,18 +214,18 @@ static void moveCamera()
             cameraSpeed;
     }
 
-#if 0
     static bool spaceWasPressed = false;
     if (glfwGetKey(gWindow, GLFW_KEY_SPACE) == GLFW_PRESS) {
         if (!spaceWasPressed) {
-            gUseHdr = !gUseHdr;
-            std::cout << "Use HDR: " << gUseHdr << std::endl;
+            gUseSSAO = !gUseSSAO;
+            std::cout << "Use SSAO: " << gUseSSAO << std::endl;
             spaceWasPressed = true;
         }
     } else {
         spaceWasPressed = false;
     }
 
+#if 0
     if (glfwGetKey(gWindow, GLFW_KEY_LEFT) == GLFW_PRESS) {
         gExposure -= 0.1f;
         std::cout << "gExposure: " << gExposure << std::endl;
@@ -235,178 +239,176 @@ static void moveCamera()
 // called once every frame during main loop
 static void draw()
 {
-#if 0
     // get shader uniform locations
     glUseProgram(gShaderProgram.id);
     #define GET_LOC(name) glGetUniformLocation(gShaderProgram.id, name) 
-    static GLuint uDiffuseTex = GET_LOC("uDiffuseTex");
     static GLuint uProjection = GET_LOC("uProjection");
     static GLuint uView = GET_LOC("uView");
     static GLuint uModel = GET_LOC("uModel");
-    static GLuint uViewPos = GET_LOC("uViewPos");
-    #undef GET_LOC
-
-    glUseProgram(gDeferredShaderProgram.id);
-    #define GET_LOC(name) glGetUniformLocation(gDeferredShaderProgram.id, name) 
-    static GLuint uPositionTex = GET_LOC("uPositionTex");
-    static GLuint uNormalTex = GET_LOC("uNormalTex");
-    static GLuint uAlbedoSpecTex = GET_LOC("uAlbedoSpecTex");
-    static GLuint uViewPos_deferred = GET_LOC("uViewPos");
+    static GLuint uInvertNormals = GET_LOC("uInvertNormals");
     #undef GET_LOC
 
     glUseProgram(gLightShaderProgram.id);
-    static GLuint uModel_light = glGetUniformLocation(gLightShaderProgram.id, "uModel");
-    static GLuint uView_light = glGetUniformLocation(gLightShaderProgram.id, "uView");
-    static GLuint uProjection_light = glGetUniformLocation(gLightShaderProgram.id, "uProjection");
-    static GLuint uLightColor_light = glGetUniformLocation(gLightShaderProgram.id, "uLightColor");
+    #define GET_LOC(name) glGetUniformLocation(gLightShaderProgram.id, name)
+    static GLuint uPositionTex_light = GET_LOC("uPositionTex");
+    static GLuint uNormalTex_light = GET_LOC("uNormalTex");
+    static GLuint uAlbedoTex_light = GET_LOC("uAlbedoTex");
+    static GLuint uSsaoTex_light = GET_LOC("uSsaoTex");
+    static GLuint uLight_Position = GET_LOC("uLight.Position");
+    static GLuint uLight_Color = GET_LOC("uLight.Color");
+    static GLuint uLight_Linear = GET_LOC("uLight.Linear");
+    static GLuint uLight_Quadratic = GET_LOC("uLight.Quadratic");
+    static GLuint uUseSSAO = GET_LOC("uUseSSAO");
+    #undef GET_LOC
+
+    glUseProgram(gSSAOShaderProgram.id);
+    #define GET_LOC(name) glGetUniformLocation(gSSAOShaderProgram.id, name)
+    static GLuint uPositionTex_ssao = GET_LOC("uPositionTex");
+    static GLuint uNoiseTex_ssao = GET_LOC("uNoiseTex");
+    static GLuint uNormalTex_ssao = GET_LOC("uNormalTex");
+    static GLuint uProjection_ssao = GET_LOC("uProjection");
+    static GLuint uSamples_ssao = GET_LOC("uSamples");
+    #undef GET_LOC
+
+    glUseProgram(gSSAOBlurShaderProgram.id);
+    #define GET_LOC(name) glGetUniformLocation(gSSAOBlurShaderProgram.id, name)
+    static GLuint uSsaoInput_blur = GET_LOC("uSsaoInput");
+    #undef GET_LOC
 
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    // render the scene into the floating point framebuffer
+    // geometry pass
     glBindFramebuffer(GL_FRAMEBUFFER, gSSAOGeometryBuffer.id);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glUseProgram(gShaderProgram.id);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         static glm::mat4 projectionMat;
         static glm::mat4 viewMat;
         createProjectionMatrix(projectionMat, gCamera);
         createViewMatrix(viewMat, gCamera);
+        glUseProgram(gShaderProgram.id);
         glUniformMatrix4fv(uProjection, 1, GL_FALSE, glm::value_ptr(projectionMat));
         glUniformMatrix4fv(uView, 1, GL_FALSE, glm::value_ptr(viewMat));
-        glActiveTexture(GL_TEXTURE0);
-        glUniform1i(uDiffuseTex, 0); // GL_TEXTURE0
-        glBindTexture(GL_TEXTURE_2D, gWoodTexture.id);
-        // set light uniforms
-        for (size_t i = 0; i < gLightPositions.size(); i++)
-        {
-            std::string str = "lights[" + std::to_string(i) + "].Position";
-            GLuint pos = glGetUniformLocation(gShaderProgram.id, str.c_str());
-            glUniform3fv(pos, 1, glm::value_ptr(gLightPositions[i]));
-            str = "lights[" + std::to_string(i) + "].Color";
-            pos = glGetUniformLocation(gShaderProgram.id, str.c_str());
-            glUniform3fv(pos, 1, glm::value_ptr(gLightColors[i]));
-        }
-        glUniform3fv(uViewPos, 1, glm::value_ptr(gCamera.position));
 
-        glBindTexture(GL_TEXTURE_2D, gContainerTexture.id);
-
-        // floor cube
+        // room cube
         glm::mat4 modelMat = glm::mat4(1.0f);
-        modelMat = glm::translate(modelMat, glm::vec3(0.0f, -1.0f, 0.0f));
-        modelMat = glm::scale(modelMat, glm::vec3(12.5f, 0.5f, 12.5f));
+        modelMat = glm::translate(modelMat, glm::vec3(0.0f, 7.0f, 0.0f));
+        modelMat = glm::scale(modelMat, glm::vec3(7.5f, 7.5f, 7.5f));
         glUniformMatrix4fv(uModel, 1, GL_FALSE, glm::value_ptr(modelMat));
+        glUniform1i(uInvertNormals, true);
         glBindVertexArray(gCube.VAO);
         glDrawArrays(GL_TRIANGLES, 0, gCube.numVertices);
+        glUniform1i(uInvertNormals, false);
 
-        // other scene cubes
+        // backpack model on the floor
         modelMat = glm::mat4(1.0f);
-        modelMat = glm::translate(modelMat, glm::vec3(0.0f, 1.5f, 0.0f));
-        modelMat = glm::scale(modelMat, glm::vec3(0.5f, 0.5f, 0.5f));
-        glUniformMatrix4fv(uModel, 1, GL_FALSE, glm::value_ptr(modelMat));
-        glBindVertexArray(gCube.VAO);
-        glDrawArrays(GL_TRIANGLES, 0, gCube.numVertices);
-
-        modelMat = glm::mat4(1.0f);
-        modelMat = glm::translate(modelMat, glm::vec3(2.0f, 0.0f, 1.0f));
-        modelMat = glm::scale(modelMat, glm::vec3(0.5f, 0.5f, 0.5f));
-        glUniformMatrix4fv(uModel, 1, GL_FALSE, glm::value_ptr(modelMat));
-        glBindVertexArray(gCube.VAO);
-        glDrawArrays(GL_TRIANGLES, 0, gCube.numVertices);
-
-        modelMat = glm::mat4(1.0f);
-        modelMat = glm::translate(modelMat, glm::vec3(-1.0f, -1.0f, 2.0f));
-        modelMat = glm::rotate(modelMat, glm::radians(60.0f), glm::normalize(glm::vec3(1.0f, 0.0f, 1.0f)));
-        glUniformMatrix4fv(uModel, 1, GL_FALSE, glm::value_ptr(modelMat));
-        glBindVertexArray(gCube.VAO);
-        glDrawArrays(GL_TRIANGLES, 0, gCube.numVertices);
-
-        modelMat = glm::mat4(1.0f);
-        modelMat = glm::translate(modelMat, glm::vec3(0.0f, 2.7f, 4.0f));
-        modelMat = glm::rotate(modelMat, glm::radians(23.0f), glm::normalize(glm::vec3(1.0f, 0.0f, 1.0f)));
-        glUniformMatrix4fv(uModel, 1, GL_FALSE, glm::value_ptr(modelMat));
-        glBindVertexArray(gCube.VAO);
-        glDrawArrays(GL_TRIANGLES, 0, gCube.numVertices);
-
-        modelMat = glm::mat4(1.0f);
-        modelMat = glm::translate(modelMat, glm::vec3(-2.0f, 1.0f, -3.0f));
-        modelMat = glm::rotate(modelMat, glm::radians(127.0f), glm::normalize(glm::vec3(1.0f, 0.0f, 1.0f)));
-        glUniformMatrix4fv(uModel, 1, GL_FALSE, glm::value_ptr(modelMat));
-        glBindVertexArray(gCube.VAO);
-        glDrawArrays(GL_TRIANGLES, 0, gCube.numVertices);
-        
-        modelMat = glm::mat4(1.0f);
-        modelMat = glm::translate(modelMat, glm::vec3(-3.0f, 0.0f, 0.0f));
-        modelMat = glm::scale(modelMat, glm::vec3(0.5f, 0.5f, 0.5f));
-        glUniformMatrix4fv(uModel, 1, GL_FALSE, glm::value_ptr(modelMat));
-        glBindVertexArray(gCube.VAO);
-        glDrawArrays(GL_TRIANGLES, 0, gCube.numVertices);
-
-        // Model
-        modelMat = glm::mat4(1.0f);
-        modelMat = glm::translate(modelMat, glm::vec3(-2.0f, 1.0f, 3.0f));
-        modelMat = glm::scale(modelMat, glm::vec3(0.25f));
+        modelMat = glm::translate(modelMat, glm::vec3(0.0f, 0.5f, 0.0f));
+        modelMat = glm::rotate(modelMat, glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+        modelMat = glm::scale(modelMat, glm::vec3(1.0f));
         glUniformMatrix4fv(uModel, 1, GL_FALSE, glm::value_ptr(modelMat));
         gModel.Draw(gShaderProgram);
-
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
 #if 0
     // Debug draw intial buffer
     glUseProgram(gDebugBufferShaderProgram.id);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);        
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, gSSAOGeometryBuffer.colorBufferIDs[2]);
+    glBindTexture(GL_TEXTURE_2D, gSSAOGeometryBuffer.colorBufferIDs[0]); // 0 = position, 1 = normal, 2 = albedo/specular
+    glBindVertexArray(gScreenTexture.VAO);
+    glDrawArrays(GL_TRIANGLES, 0, gScreenTexture.numVertices);
+#endif
+
+    // SSAO calculation
+    glBindFramebuffer(GL_FRAMEBUFFER, gSSAOOutputBuffer.id);
+        glClear(GL_COLOR_BUFFER_BIT);
+        glUseProgram(gSSAOShaderProgram.id);
+        glUniform1i(uPositionTex_ssao, 0); // corresponds to texture 0
+        glUniform1i(uNormalTex_ssao, 1); // corresponds to texture 1
+        glUniform1i(uNoiseTex_ssao, 2); // corresponds to texture 2
+        for (size_t i = 0; i < 64; i++)
+        {
+            std::string str = "uSamples[" + std::to_string(i) + "]";
+            GLuint loc = glGetUniformLocation(gSSAOShaderProgram.id, str.c_str());
+            glUniform3fv(loc, 1, glm::value_ptr(gSSAOKernel[i]));
+        }
+        glUniformMatrix4fv(uProjection_ssao, 1, GL_FALSE, glm::value_ptr(projectionMat));
+
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, gSSAOGeometryBuffer.colorBufferIDs[0]); // position
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, gSSAOGeometryBuffer.colorBufferIDs[1]); // Normal
+        glActiveTexture(GL_TEXTURE2);
+        glBindTexture(GL_TEXTURE_2D, gSSAONoise.id); // noise
+
+        // 'draw' 2D screen-space to calculate SSAO
+        glBindVertexArray(gScreenTexture.VAO);
+        glDrawArrays(GL_TRIANGLES, 0, gScreenTexture.numVertices);
+        
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+#if 0
+    // Debug draw the SSAO output 
+    glUseProgram(gDebugBufferShaderProgram.id);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);        
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, gSSAOOutputBuffer.colorBufferID);
     glBindVertexArray(gScreenTexture.VAO);
     glDrawArrays(GL_TRIANGLES, 0, gScreenTexture.numVertices);
 #endif
 
 #if 1
-    glUseProgram(gDeferredShaderProgram.id);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, gSSAOGeometryBuffer.colorBufferIDs[0]);
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, gSSAOGeometryBuffer.colorBufferIDs[1]);
-    glActiveTexture(GL_TEXTURE2);
-    glBindTexture(GL_TEXTURE_2D, gSSAOGeometryBuffer.colorBufferIDs[2]);
-    glUniform1i(uPositionTex, 0);
-    glUniform1i(uNormalTex, 1);
-    glUniform1i(uAlbedoSpecTex, 2);
-    glUniform3fv(uViewPos_deferred, 1, glm::value_ptr(gCamera.position));
-    for (size_t i = 0; i < 32; i++)
-    {
-        std::string locString = "lights[" + std::to_string(i) + "].Position";
-        GLuint loc = glGetUniformLocation(gDeferredShaderProgram.id, locString.c_str());
-        glUniform3fv(loc, 1, glm::value_ptr(gLightPositions[i]));
-        locString = "lights[" + std::to_string(i) + "].Color";
-        loc = glGetUniformLocation(gDeferredShaderProgram.id, locString.c_str());
-        glUniform3fv(loc, 1, glm::value_ptr(gLightColors[i]));
-    }
-    glBindVertexArray(gScreenTexture.VAO);
-    glDrawArrays(GL_TRIANGLES, 0, gScreenTexture.numVertices);
+    // Blur SSAO result to remove noise
+    glBindFramebuffer(GL_FRAMEBUFFER, gSSAOBlurBuffer.id);
+        glClear(GL_COLOR_BUFFER_BIT);
+        glUseProgram(gSSAOBlurShaderProgram.id);
 
-    // copy the geometry depth buffer from the first pass so we can
-    // use it for depth testing when we draw non-deferred
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, gSSAOGeometryBuffer.id);
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0); // bind to default
-    glBlitFramebuffer(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, 0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+        glUniform1i(uSsaoInput_blur, 0); // corresponds to texture 0
+
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, gSSAOOutputBuffer.colorBufferID);
+
+        // 'draw' 2D screen-space to blur the SSAO result
+        glBindVertexArray(gScreenTexture.VAO);
+        glDrawArrays(GL_TRIANGLES, 0, gScreenTexture.numVertices);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-    glUseProgram(gLightShaderProgram.id);
-    glUniformMatrix4fv(uProjection_light, 1, GL_FALSE, glm::value_ptr(projectionMat));
-    glUniformMatrix4fv(uView_light, 1, GL_FALSE, glm::value_ptr(viewMat));
-
-    for (size_t i = 0; i < gLightPositions.size(); i++)
-    {
-        modelMat = glm::mat4(1.0f);
-        modelMat = glm::translate(modelMat, glm::vec3(gLightPositions[i]));
-        modelMat = glm::scale(modelMat, glm::vec3(0.25f));
-        glUniformMatrix4fv(uModel_light, 1, GL_FALSE, glm::value_ptr(modelMat));
-        glUniform3fv(uLightColor_light, 1, glm::value_ptr(gLightColors[i]));
-        glBindVertexArray(gCube.VAO);
-        glDrawArrays(GL_TRIANGLES, 0, gCube.numVertices);
-    }
 #endif
 
+#if 0
+    // Debug draw the blurred SSAO
+    glUseProgram(gDebugBufferShaderProgram.id);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);        
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, gSSAOBlurBuffer.colorBufferID);
+    glBindVertexArray(gScreenTexture.VAO);
+    glDrawArrays(GL_TRIANGLES, 0, gScreenTexture.numVertices);
+#endif
+
+#if 1
+    // Lighting calculation using the SSAO blurred result
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glUseProgram(gLightShaderProgram.id);
+    glm::vec3 lightPos_viewSpace = glm::vec3(viewMat * glm::vec4(gLightPos, 1.0));
+    glUniform3fv(uLight_Position, 1, glm::value_ptr(lightPos_viewSpace));
+    glUniform3fv(uLight_Color, 1, glm::value_ptr(gLightColor));
+    glUniform1f(uLight_Linear, 0.09f);
+    glUniform1f(uLight_Quadratic, 0.032f);
+    glUniform1i(uPositionTex_light, 0); // corresponds to texture 0
+    glUniform1i(uNormalTex_light, 1); // corresponds to texture 1
+    glUniform1i(uAlbedoTex_light, 2); // corresponds to texture 2
+    glUniform1i(uSsaoTex_light, 3); // corresponds to texture 3
+
+    glUniform1i(uUseSSAO, gUseSSAO);
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, gSSAOGeometryBuffer.colorBufferIDs[0]); // position
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, gSSAOGeometryBuffer.colorBufferIDs[1]); // normal
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_2D, gSSAOGeometryBuffer.colorBufferIDs[2]); // albedo
+    glActiveTexture(GL_TEXTURE3);
+    glBindTexture(GL_TEXTURE_2D, gSSAOBlurBuffer.colorBufferID); // SSAO occlusion value
+    glBindVertexArray(gScreenTexture.VAO);
+    glDrawArrays(GL_TRIANGLES, 0, gScreenTexture.numVertices);
 #endif
 }
 
@@ -444,15 +446,21 @@ int main(void)
         gFragmentShader);
     glUseProgram(gShaderProgram.id);
 
-    std::cout << "Creating deferred shader" << std::endl;
-    gDeferredVertexShader = createVertexShader("vertexShader_deferred.glsl");
-    gDeferredFragmentShader = createFragmentShader("fragmentShader_deferred.glsl");
-    gDeferredShaderProgram = createShaderProgram(gDeferredVertexShader, gDeferredFragmentShader);
+    std::cout << "Creating SSAO shader" << std::endl;
+    gVertexSSAOShader = createVertexShader("vertexShader_ssao.glsl");
+    gFragmentSSAOShader = createFragmentShader("fragmentShader_ssao.glsl");
+    gSSAOShaderProgram = createShaderProgram(gVertexSSAOShader, gFragmentSSAOShader);
 
-    // make a shader just for the light source
-    std::cout << "Creating light shader" << std::endl;
-    gLightVertexShader = createVertexShader("vertexShader_lightSource.glsl");
-    gLightFragmentShader = createFragmentShader("fragmentShader_lightSource.glsl");
+    std::cout << "Creating SSAO blur shader" << std::endl;
+    gVertexSSAOBlurShader = createVertexShader("vertexShader_ssao.glsl");
+    gFragmentSSAOBlurShader = createFragmentShader("fragmentShader_ssaoBlur.glsl");
+    gSSAOBlurShaderProgram = createShaderProgram(gVertexSSAOBlurShader, gFragmentSSAOBlurShader);
+
+    // This is a different shader than the one for just drawing the light cube in prev examples,
+    // this one is for the lighting pass of the SSAO process
+    std::cout << "Creating light pass shader" << std::endl;
+    gLightVertexShader = createVertexShader("vertexShader_ssao.glsl");
+    gLightFragmentShader = createFragmentShader("fragmentShader_ssaoLighting.glsl");
     gLightShaderProgram = createShaderProgram(gLightVertexShader,
         gLightFragmentShader);
 
@@ -461,15 +469,6 @@ int main(void)
     gDebugBufferFragmentShader = createFragmentShader("fragmentShader_debugBuffer.glsl");
     gDebugBufferShaderProgram = createShaderProgram(gDebugBufferVertexShader, gDebugBufferFragmentShader);
 
-    // LightSource.h
-    //gLightSource = createLightSource(gCube);
-
-    // Transform.h
-    //gLightTransMat = createTransformationMatrix();
-
-    // Texture.h
-    gWoodTexture = createTexture("wood.png");
-    gContainerTexture = createTexture("container2.png");
 
     // SSAOGeometryBuffer.h
     gSSAOGeometryBuffer = createSSAOGeometryBuffer();
@@ -503,8 +502,7 @@ int main(void)
 
         // move the light around
         //static float lightMoveRadius = 5.0F;
-        //gLightPosition.x = cos(glfwGetTime()) * lightMoveRadius;
-        //gLightDirection.x = cos(glfwGetTime()) * lightMoveRadius;
+        //gLightPos.x = cos(glfwGetTime()) * lightMoveRadius;
 
         // Transform.h
         //updateTransformationMatrix(gLightTransMat, gLightPosition, gCamera);
