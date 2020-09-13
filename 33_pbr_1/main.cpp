@@ -249,9 +249,9 @@ static void draw()
     static GLuint uModel = glGetUniformLocation(gShaderProgram.id, "uModel");
 
     // clear the screen
-    GLfloat r = 0.0F; // red
+    GLfloat r = 0.2F; // red
     GLfloat g = 0.0F; // green
-    GLfloat b = 0.0F; // blue
+    GLfloat b = 0.1F; // blue
     GLfloat a = 1.0F; // alpha
     glClearColor(r, g, b, a);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -292,8 +292,8 @@ static void draw()
             // clamp roughness to [0.05,1.0] because roughness of 0.0 looks "off" in direct lighting"
             glUniform1f(uRoughness, glm::clamp(float(col) / float(numSphereCols), 0.025f, 1.0f));
 
-            glm::vec3 pos((col - (numSphereCols / 2)) * sphereSpacing,
-                          (row - (numSphereRows / 2)) * sphereSpacing,
+            glm::vec3 pos((float(col) - float((numSphereCols / 2))) * sphereSpacing,
+                          (float(row) - float((numSphereRows / 2))) * sphereSpacing,
                           0.0f);
             updateTransformationMatrix(transMat, pos, gCamera);
             modelMat = glm::mat4(1.0f);
